@@ -256,6 +256,9 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   cameraRigPrefab: {fileID: 6747624087142974341, guid: 20fb3222aefb8ed418eaab2364e00bd1, type: 3}
   LocalCamera: {fileID: 0}
+  bodyRenderer: {fileID: 4963857651724313249}
+  turretRenderer: {fileID: 2256791385562425189}
+  skinDatabase: {fileID: 11400000, guid: f47fb1f1f869c8d43a8d72d54ed731c3, type: 2}
 --- !u!114 &-8483588911915614913
 MonoBehaviour:
   m_ObjectHideFlags: 0

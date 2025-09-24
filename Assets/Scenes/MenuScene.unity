@@ -450,8 +450,8 @@ MonoBehaviour:
   createLobbyButton: {fileID: 1275884390}
   joinLobbyButton: {fileID: 169837686}
   codeLobby: {fileID: 174095045}
-  Error: {fileID: 0}
-  gameSceneName: LobbyScene
+  Error: {fileID: 1167957661}
+  lobbySceneName: LobbyScene
 --- !u!4 &209763181
 Transform:
   m_ObjectHideFlags: 0
@@ -1125,8 +1125,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 16.2, y: -119.6}
-  m_SizeDelta: {x: 200, y: 50}
+  m_AnchoredPosition: {x: 36.21022, y: -168.46155}
+  m_SizeDelta: {x: 791.922, y: 147.7231}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1167957661
 MonoBehaviour:

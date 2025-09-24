@@ -1,24 +1,33 @@
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
+using UnityEngine;
+using UnityEngine.UI;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
-using Unity.Services.Authentication;
 using Unity.Services.Core;
+using Unity.Services.Authentication;
 using Unity.Services.Lobbies;
 using Unity.Services.Lobbies.Models;
 using Unity.Services.Relay;
 using Unity.Services.Relay.Models;
-using UnityEngine;
-using UnityEngine.UI;
-using UnityEngine.SceneManagement;
 using TMPro;
+using UnityEngine.SceneManagement;
 
-public class Lobby : MonoBehaviour
+public class LobbyManager : MonoBehaviour
 {
-    public static Lobby Instance { get; private set; }
-    private Unity.Services.Lobbies.Models.Lobby hostLobby;
-    private Unity.Services.Lobbies.Models.Lobby joinLobby;
+    public static LobbyManager Instance { get; private set; }
+
+    [Header("UI References")]
+    [SerializeField] private Button createLobbyButton;
+    [SerializeField] private Button joinLobbyButton;
+    [SerializeField] private TMP_InputField codeLobby;
+    [SerializeField] private TMP_Text Error;
+
+    [Header("Scene Settings")]
+    public string lobbySceneName = "LobbyScene";
+
+    public Unity.Services.Lobbies.Models.Lobby hostLobby;
+    public Unity.Services.Lobbies.Models.Lobby joinLobby;
 
     private float hearBeatLobbyTimer = 15f;
     private float updateLobbyPollTimer = 5f;
@@ -33,15 +42,6 @@ public class Lobby : MonoBehaviour
 
     private string playerName;
 
-    [Header("UI References")]
-    [SerializeField] private Button createLobbyButton;
-    [SerializeField] private Button joinLobbyButton;
-    [SerializeField] private TMP_InputField codeLobby;
-    [SerializeField] private TMP_Text Error;
-
-    [Header("Scene Settings")]
-    public string gameSceneName = "LobbyScene";
-
     private void Awake()
     {
         if (Instance == null)
@@ -49,51 +49,29 @@ public class Lobby : MonoBehaviour
             Instance = this;
             DontDestroyOnLoad(gameObject);
         }
-        else
-        {
-            Destroy(gameObject);
-        }
+        else Destroy(gameObject);
     }
 
     private async void Start()
     {
         if (UnityServices.State != ServicesInitializationState.Initialized)
-        {
-            var options = new InitializationOptions();
-            await UnityServices.InitializeAsync(options);
-            Debug.Log("Unity Services Initialized!");
-        }
+            await UnityServices.InitializeAsync();
 
         if (!AuthenticationService.Instance.IsSignedIn)
-        {
             await AuthenticationService.Instance.SignInAnonymouslyAsync();
-            Debug.Log("Signed in anonymously as: " + AuthenticationService.Instance.PlayerId);
-        }
 
         playerName = "Player" + UnityEngine.Random.Range(0, 100);
 
         if (createLobbyButton != null)
-        {
             createLobbyButton.onClick.AddListener(CreateLobby);
-        }
-        else
-        {
-            Debug.LogWarning("Chưa gán Create Lobby Button trong Inspector!");
-        }
-
 
         if (joinLobbyButton != null)
         {
-            joinLobbyButton.onClick.AddListener(() => 
-            // codeLobby là TMP_InputField
+            joinLobbyButton.onClick.AddListener(() =>
             {
                 string code = codeLobby.text.Trim().ToUpper();
                 JoinLobby(code);
             });
-        }
-        else
-        {
-            Debug.LogWarning("Chưa gán các Join Lobby Button trong Inspector!");
         }
     }
 
@@ -110,23 +88,20 @@ public class Lobby : MonoBehaviour
         return joinLobby != null && joinLobby.HostId == AuthenticationService.Instance.PlayerId;
     }
 
+    #region Heartbeat & Poll
     private async void HandleLobbyHeartBeat()
     {
-        if (IsLobbyHost())
+        if (!IsLobbyHost()) return;
+
+        hearBeatLobbyTimer -= Time.deltaTime;
+        if (hearBeatLobbyTimer <= 0f)
         {
-            hearBeatLobbyTimer -= Time.deltaTime;
-            if (hearBeatLobbyTimer <= 0f)
+            hearBeatLobbyTimer = HEARTBEAT_INTERVAL;
+            try
             {
-                hearBeatLobbyTimer = HEARTBEAT_INTERVAL;
-                try
-                {
-                    await LobbyService.Instance.SendHeartbeatPingAsync(hostLobby.Id);
-                }
-                catch (LobbyServiceException e)
-                {
-                    Debug.LogError($"Heartbeat failed: {e.Message}");
-                }
+                await LobbyService.Instance.SendHeartbeatPingAsync(hostLobby.Id);
             }
+            catch (Exception e) { Debug.LogWarning("Heartbeat failed: " + e.Message); }
         }
     }
 
@@ -142,11 +117,7 @@ public class Lobby : MonoBehaviour
             {
                 joinLobby = await LobbyService.Instance.GetLobbyAsync(joinLobby.Id);
             }
-            catch (LobbyServiceException e)
-            {
-                Debug.LogWarning($"Lobby update failed: {e.Message}");
-                updateLobbyPollTimer = LOBBY_POLL_INTERVAL + 5f;
-            }
+            catch { updateLobbyPollTimer = LOBBY_POLL_INTERVAL + 5f; }
         }
     }
 
@@ -171,10 +142,7 @@ public class Lobby : MonoBehaviour
                         }
                     });
             }
-            catch (LobbyServiceException e)
-            {
-                Debug.LogWarning("Send lastSeen failed: " + e.Message);
-            }
+            catch { }
         }
     }
 
@@ -198,23 +166,16 @@ public class Lobby : MonoBehaviour
                         && long.TryParse(ds.Value, out var last))
                     {
                         if (now - last > TIMEOUT_SECONDS)
-                        {
                             await LobbyService.Instance.RemovePlayerAsync(hostLobby.Id, pl.Id);
-                        }
-                    }
-                    else
-                    {
-                        await LobbyService.Instance.RemovePlayerAsync(hostLobby.Id, pl.Id);
                     }
                 }
             }
-            catch (LobbyServiceException e)
-            {
-                Debug.LogWarning("Host check failed: " + e.Message);
-            }
+            catch { }
         }
     }
+    #endregion
 
+    #region Create / Join
     public async void CreateLobby()
     {
         try
@@ -222,38 +183,29 @@ public class Lobby : MonoBehaviour
             string lobbyName = "MyLobby";
             int maxPlayer = 4;
 
-            CreateLobbyOptions createLobbyOptions = new CreateLobbyOptions
+            var createLobbyOptions = new CreateLobbyOptions
             {
                 IsPrivate = false,
-                Player = GetPlayer(),
+                Player = GetPlayer()
             };
 
             var lobby = await LobbyService.Instance.CreateLobbyAsync(lobbyName, maxPlayer, createLobbyOptions);
             hostLobby = lobby;
             joinLobby = lobby;
 
-            // Tạo Relay Allocation
             Allocation allocation = await RelayService.Instance.CreateAllocationAsync(maxPlayer - 1);
             string relayCode = await RelayService.Instance.GetJoinCodeAsync(allocation.AllocationId);
 
-            // Lưu RelayCode vào Lobby Data
             await LobbyService.Instance.UpdateLobbyAsync(lobby.Id, new UpdateLobbyOptions
             {
-                Data = new Dictionary<string, DataObject>
-                {
-                    { "RelayCode", new DataObject(DataObject.VisibilityOptions.Public, relayCode) }
-                }
+                Data = new Dictionary<string, DataObject> { { "RelayCode", new DataObject(DataObject.VisibilityOptions.Public, relayCode) } }
             });
 
-            // Config UnityTransport
             var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
             transport.SetRelayServerData(AllocationUtils.ToRelayServerData(allocation, "wss"));
 
-            Debug.Log("Relay Host setup complete. Code: " + relayCode);
-
-            // Start Host + Load Scene
             NetworkManager.Singleton.StartHost();
-            NetworkManager.Singleton.SceneManager.LoadScene(gameSceneName, LoadSceneMode.Single);
+            NetworkManager.Singleton.SceneManager.LoadScene(lobbySceneName, LoadSceneMode.Single);
             Debug.Log("Code join: " + lobby.LobbyCode );
         }
         catch (LobbyServiceException e)
@@ -278,21 +230,13 @@ public class Lobby : MonoBehaviour
     {
         try
         {
-            joinLobby = await LobbyService.Instance.JoinLobbyByCodeAsync(lobbyCode, new JoinLobbyByCodeOptions
-            {
-                Player = GetPlayer()
-            });
+            joinLobby = await LobbyService.Instance.JoinLobbyByCodeAsync(lobbyCode, new JoinLobbyByCodeOptions { Player = GetPlayer() });
 
             string relayCode = joinLobby.Data["RelayCode"].Value;
-
-            // Join Relay
             JoinAllocation joinAlloc = await RelayService.Instance.JoinAllocationAsync(relayCode);
 
-            // Config UnityTransport
             var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
             transport.SetRelayServerData(AllocationUtils.ToRelayServerData(joinAlloc, "wss"));
-
-            Debug.Log("Relay Client setup complete. Joined with code: " + relayCode);
 
             NetworkManager.Singleton.StartClient();
         }
@@ -311,14 +255,14 @@ public class Lobby : MonoBehaviour
             else if (e.Reason == LobbyExceptionReason.ValidationError)
                 Error.text = $"Mã lobby '{lobbyCode}' không hợp lệ.";
         }
-        
         catch (Exception e)
         {
             Error.text = "[Unknown Error]: " + e;
         }
     }
+    #endregion
 
-    private Player GetPlayer()
+    public Player GetPlayer()
     {
         long unix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         return new Player
@@ -329,5 +273,11 @@ public class Lobby : MonoBehaviour
                 { "lastSeen", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, unix.ToString()) }
             }
         };
+    }
+    public string GetPlayerId()
+    {
+        return AuthenticationService.Instance.IsSignedIn
+            ? AuthenticationService.Instance.PlayerId
+            : null;
     }
 }
