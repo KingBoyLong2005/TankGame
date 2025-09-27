@@ -2,6 +2,7 @@ using UnityEngine;
 using Unity.Netcode;
 using Unity.Cinemachine;
 using Unity.VisualScripting;
+using Unity.Collections;
 
 public class PlayerSetup : NetworkBehaviour
 {
@@ -14,13 +15,17 @@ public class PlayerSetup : NetworkBehaviour
     [SerializeField] private SpriteRenderer bodyRenderer;
     [SerializeField] private SpriteRenderer turretRenderer;
     [SerializeField] private TankSkinDatabase skinDatabase; // gán trong Prefab
-
     // networked skin index (server authoritative)
     private NetworkVariable<int> skinIndex = new NetworkVariable<int>(
         0,
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server
     );
+    public NetworkVariable<FixedString64Bytes> playerName =
+        new NetworkVariable<FixedString64Bytes>(
+            default,
+            NetworkVariableReadPermission.Everyone,
+            NetworkVariableWritePermission.Owner);
 
     public override void OnNetworkSpawn()
     {
@@ -36,6 +41,9 @@ public class PlayerSetup : NetworkBehaviour
         // --- Nếu là owner local thì báo server biết skin mình đã chọn ---
         if (IsOwner)
         {
+            string myName = LobbyManager.Instance.GetPlayerName();
+            playerName.Value = new FixedString64Bytes(myName);
+
             int mySkin = -1;
 
             // chỉ lấy từ LobbyGameFlow nếu đang ở lobby scene
@@ -102,5 +110,10 @@ public class PlayerSetup : NetworkBehaviour
     {
         if (idx < 0 || idx >= skinDatabase.skins.Count) idx = 0;
         skinIndex.Value = idx;
+    }
+
+    public string GetPlayerName()
+    {
+        return playerName.Value.ToString();
     }
 }

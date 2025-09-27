@@ -12,6 +12,7 @@ using Unity.Services.Relay;
 using Unity.Services.Relay.Models;
 using TMPro;
 using UnityEngine.SceneManagement;
+using Unity.VisualScripting;
 
 public class LobbyManager : MonoBehaviour
 {
@@ -22,6 +23,7 @@ public class LobbyManager : MonoBehaviour
     [SerializeField] private Button joinLobbyButton;
     [SerializeField] private TMP_InputField codeLobby;
     [SerializeField] private TMP_Text Error;
+    [SerializeField] private TMP_InputField PlayerNameInput;
 
     [Header("Scene Settings")]
     public string lobbySceneName = "LobbyScene";
@@ -60,7 +62,8 @@ public class LobbyManager : MonoBehaviour
         if (!AuthenticationService.Instance.IsSignedIn)
             await AuthenticationService.Instance.SignInAnonymouslyAsync();
 
-        playerName = "Player" + UnityEngine.Random.Range(0, 100);
+        // playerName = "Player" + UnityEngine.Random.Range(0, 100);
+        // PlayerNameInput.text = playerName;
 
         if (createLobbyButton != null)
             createLobbyButton.onClick.AddListener(CreateLobby);
@@ -180,6 +183,7 @@ public class LobbyManager : MonoBehaviour
     {
         try
         {
+            CheckName(PlayerNameInput);
             string lobbyName = "MyLobby";
             int maxPlayer = 4;
 
@@ -206,7 +210,7 @@ public class LobbyManager : MonoBehaviour
 
             NetworkManager.Singleton.StartHost();
             NetworkManager.Singleton.SceneManager.LoadScene(lobbySceneName, LoadSceneMode.Single);
-            Debug.Log("Code join: " + lobby.LobbyCode );
+            Debug.Log("Code join: " + lobby.LobbyCode);
         }
         catch (LobbyServiceException e)
         {
@@ -230,6 +234,7 @@ public class LobbyManager : MonoBehaviour
     {
         try
         {
+            CheckName(PlayerNameInput);
             joinLobby = await LobbyService.Instance.JoinLobbyByCodeAsync(lobbyCode, new JoinLobbyByCodeOptions { Player = GetPlayer() });
 
             string relayCode = joinLobby.Data["RelayCode"].Value;
@@ -279,5 +284,20 @@ public class LobbyManager : MonoBehaviour
         return AuthenticationService.Instance.IsSignedIn
             ? AuthenticationService.Instance.PlayerId
             : null;
+    }
+    public string GetPlayerName()
+    {
+        return playerName;
+    }
+    private void CheckName(TMP_InputField playerNameCheck)
+    {
+        if (playerNameCheck.text == "")
+        {
+            playerName = "Player" + UnityEngine.Random.Range(0, 100);
+        }
+        else
+        {
+            playerName = PlayerNameInput.text;
+        }
     }
 }
