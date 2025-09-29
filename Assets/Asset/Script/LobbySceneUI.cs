@@ -51,16 +51,9 @@ public class LobbySceneUI : MonoBehaviour
 
         for (int i = 0; i < skinButtons.Count; i++)
         {
-            bool taken = claimed.Contains(i.ToString());
-
-            // Nếu skin đã bị chọn bởi người khác thì disable
-            // Nếu là của chính mình thì vẫn enable để có thể đổi
-            bool isMine = mySkin == i.ToString();
-            skinButtons[i].interactable = !taken || isMine;
-
-            // Hiện overlay nếu bị người khác chiếm
+           skinButtons[i].interactable = true;
             if (i < skinLockOverlays.Count)
-                skinLockOverlays[i].gameObject.SetActive(taken && !isMine);
+                skinLockOverlays[i].gameObject.SetActive(false);
         }
     }
     // [SerializeField] Button Skin1;

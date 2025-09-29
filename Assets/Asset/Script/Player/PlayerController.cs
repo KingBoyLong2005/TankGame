@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
+using Unity.Cinemachine;
 
 public class PlayerController : MonoBehaviour
 {
@@ -12,34 +14,39 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float deceleration = 3f; // Giảm tốc khi dừng
 
     [Header("Input Actions")]
-    [SerializeField] private InputAction moveAction; // Action for movement (WASD or Arrow keys as Vector2)
-    [SerializeField] private InputAction mousePositionAction; // Action for mouse position (Pointer Position)
-
+    [SerializeField] private InputAction moveAction; // Action for movement
+    [SerializeField] private InputAction mousePositionAction; // Action for mouse position
 
     [Header("Turret")]
-    [SerializeField] private GameObject turretTransform; // Transform của turret (child object)
+    [SerializeField] private GameObject turretTransform; // Transform của turret
 
     [Header("Rotation Offsets")]
     public float bodyRotationOffset = -90f;   // offset cho Player
     public float turretRotationOffset = -90f; // offset cho Turret
 
-    private PlayerSetup playerSetup; // Lưu tham chiếu PlayerSetup
+    private PlayerSetup playerSetup;
     private Vector2 moveInput;
     private Rigidbody2D rb;
+    private float targetBodyAngle;
+    private float currentBodyAngle;
+    private bool isInputEnabled = false; // Kiểm soát trạng thái input
 
-    private float targetBodyAngle;   // góc thân muốn xoay tới
-    private float currentBodyAngle;  // góc thân hiện tại
-    
     private void OnEnable()
     {
-        moveAction.Enable();
-        mousePositionAction.Enable();
+        // Chỉ kích hoạt input nếu không ở Lobby Scene
+        if (SceneManager.GetActiveScene().name != "LobbyScene")
+        {
+            moveAction.Enable();
+            mousePositionAction.Enable();
+            isInputEnabled = true;
+        }
     }
 
     private void OnDisable()
     {
         moveAction.Disable();
         mousePositionAction.Disable();
+        isInputEnabled = false;
     }
 
     private void Start()
@@ -50,33 +57,34 @@ public class PlayerController : MonoBehaviour
             mainCamera = playerSetup.LocalCamera;
         }
         rb = GetComponent<Rigidbody2D>();
-        rb.gravityScale = 0f; // Đảm bảo không có trọng lực
-        rb.freezeRotation = false; // Cho phép quay
-        // mainCamera = Camera.main; // Lấy camera chính
+        rb.gravityScale = 0f;
+        rb.freezeRotation = false;
     }
 
     private void Update()
     {
-        // Chỉ xử lý input và xoay turret cho người chơi local
-        if (playerSetup != null && playerSetup.IsOwner)
-        {
-            // Đọc đầu vào di chuyển
-            moveInput = moveAction.ReadValue<Vector2>();
+        // Chỉ xử lý input nếu được phép
+        if (!isInputEnabled || playerSetup == null || !playerSetup.IsOwner) return;
 
-            // Xoay turret theo chuột
-            if (turretTransform != null && mainCamera != null)
-            {
-                Vector2 mousePos = mousePositionAction.ReadValue<Vector2>();
-                Vector3 worldMousePos = mainCamera.ScreenToWorldPoint(mousePos);
-                Vector2 direction = (Vector2)(worldMousePos - turretTransform.transform.position);
-                float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg + turretRotationOffset;
-                turretTransform.transform.rotation = Quaternion.Euler(0f, 0f, angle);
-            }
+        // Đọc đầu vào di chuyển
+        moveInput = moveAction.ReadValue<Vector2>();
+
+        // Xoay turret theo chuột
+        if (turretTransform != null && mainCamera != null)
+        {
+            Vector2 mousePos = mousePositionAction.ReadValue<Vector2>();
+            Vector3 worldMousePos = mainCamera.ScreenToWorldPoint(mousePos);
+            Vector2 direction = (Vector2)(worldMousePos - turretTransform.transform.position);
+            float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg + turretRotationOffset;
+            turretTransform.transform.rotation = Quaternion.Euler(0f, 0f, angle);
         }
     }
 
     private void FixedUpdate()
     {
+        // Chỉ xử lý di chuyển nếu được phép
+        if (!isInputEnabled) return;
+
         // Xoay thân xe chỉ khi có đầu vào di chuyển
         if (moveInput.magnitude > 0.01f)
         {
@@ -108,89 +116,25 @@ public class PlayerController : MonoBehaviour
         // Update velocity along forward direction (no sideways sliding)
         rb.linearVelocity = forward * newSpeed;
     }
-    // private Camera myCamera;
 
-    // [Header("Movement Settings")]
-    // public float moveSpeed = 5f;            // tốc độ tiến
-    // public float bodyRotationSpeed = 180f;  // độ/giây, tốc độ xoay thân
+    // Phương thức để kích hoạt input khi chuyển sang scene chơi
+    public void EnableInput()
+    {
+        if (!isInputEnabled)
+        {
+            moveAction.Enable();
+            mousePositionAction.Enable();
+            isInputEnabled = true;
 
-    // [Header("Rotation Offsets")]
-    // public float bodyRotationOffset = -90f;   // offset cho Player
-    // public float turretRotationOffset = -90f; // offset cho Turret
-
-
-    // private Vector2 moveInput;
-    // private Vector2 lookDelta; // lấy delta từ Input System
-    // private Vector2 virtualMousePos; // vị trí ảo của chuột trên màn hình
-    // private Rigidbody2D rb;
-
-    // [Header("References")]
-    // public GameObject Turret;
-
-    // private float targetBodyAngle;   // góc thân muốn xoay tới
-    // private float currentBodyAngle;  // góc thân hiện tại
-
-    // void Start()
-    // {
-    //     var setup = GetComponent<PlayerSetup>();
-    // if (setup != null && setup.IsOwner) 
-    // {
-    //     myCamera = setup.LocalCamera;
-    // }
-    // }
-    // private void Awake()
-    // {
-    //     rb = GetComponent<Rigidbody2D>();
-    //     currentBodyAngle = rb.rotation;
-
-    //     // Khởi tạo "chuột ảo" ở giữa màn hình
-    //     virtualMousePos = Input.mousePosition;
-    // }
-
-    // // Gọi bởi PlayerInput khi action "Move"
-    // private void OnMove(InputValue value)
-    // {
-    //     moveInput = value.Get<Vector2>();
-    // }
-
-    // // Gọi bởi PlayerInput khi action "Look" (delta)
-    // private void OnLook(InputValue value)
-    // {
-    //     lookDelta = value.Get<Vector2>();
-    // }
-
-    // private void FixedUpdate()
-    // {
-    //     // Nếu có input thì xác định góc target
-    //     if (moveInput.sqrMagnitude > 0.001f)
-    //     {
-    //         targetBodyAngle = Mathf.Atan2(moveInput.y, moveInput.x) * Mathf.Rad2Deg + bodyRotationOffset;
-    //     }
-
-    //     // Quay mượt thân (dùng MoveTowardsAngle để tránh nhảy)
-    //     currentBodyAngle = Mathf.MoveTowardsAngle(currentBodyAngle, targetBodyAngle, bodyRotationSpeed * Time.fixedDeltaTime);
-    //     rb.MoveRotation(currentBodyAngle);
-
-    //     // Tiến về phía trước theo hướng thân
-    //     Vector2 forward = new Vector2(Mathf.Cos((currentBodyAngle - bodyRotationOffset) * Mathf.Deg2Rad),
-    //                                   Mathf.Sin((currentBodyAngle - bodyRotationOffset) * Mathf.Deg2Rad));
-
-    //     rb.MovePosition(rb.position + forward * moveInput.magnitude * moveSpeed * Time.fixedDeltaTime);
-    // }
-
-    // private void Update()
-    // {
-    //     if (Turret == null || myCamera == null) return;
-
-    //     // dùng myCamera thay vì LocalCamera static
-    //     Vector3 mouseWorldPosition = myCamera.ScreenToWorldPoint(
-    //         new Vector3(lookDelta.x, lookDelta.y, myCamera.nearClipPlane)
-    //     );
-    //     mouseWorldPosition.z = transform.position.z;
-
-    //     Vector3 direction = mouseWorldPosition - transform.position;
-    //     float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-
-    //     Turret.transform.rotation = Quaternion.Euler(0, 0, angle + turretRotationOffset);
-    // }
+            // Kích hoạt camera nếu cần
+            if (playerSetup != null && playerSetup.LocalCamera != null)
+            {
+                playerSetup.LocalCamera.enabled = true;
+                var cc = playerSetup.LocalCamera.GetComponentInParent<CinemachineCamera>();
+                if (cc != null) cc.enabled = true;
+                var listener = playerSetup.LocalCamera.GetComponentInParent<AudioListener>();
+                if (listener != null) listener.enabled = true;
+            }
+        }
+    }
 }

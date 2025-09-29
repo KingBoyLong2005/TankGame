@@ -12,7 +12,10 @@ public class PlayerHealth : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
-        currentHealth.Value = maxHealth; // Reset health khi spawn
+        if (IsServer)
+        {
+            currentHealth.Value = maxHealth; // reset chỉ trên server
+        }
         currentHealth.OnValueChanged += OnHealthChanged;
     }
 

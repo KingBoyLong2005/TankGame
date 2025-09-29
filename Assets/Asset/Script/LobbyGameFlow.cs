@@ -39,15 +39,6 @@ public class LobbyGameFlow : MonoBehaviour
         {
             if (LM.joinLobby == null) return;
 
-            foreach (var p in LM.joinLobby.Players)
-            {
-                if (p.Data != null && p.Data.TryGetValue("Skin", out var sd) && sd.Value == skinIndex.ToString())
-                {
-                    Debug.LogWarning("Skin đã bị chọn!");
-                    return;
-                }
-            }
-
             var update = new UpdatePlayerOptions
             {
                 Data = new Dictionary<string, PlayerDataObject>

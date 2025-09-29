@@ -207,9 +207,23 @@ public class LobbyManager : MonoBehaviour
 
             var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
             transport.SetRelayServerData(AllocationUtils.ToRelayServerData(allocation, "wss"));
+            
+            // Đảm bảo scene LobbyScene được tải trước khi start host
+            // if (SceneManager.GetActiveScene().name != lobbySceneName)
+            {
+                SceneManager.LoadScene(lobbySceneName, LoadSceneMode.Single);
+                // Đợi scene tải hoàn tất
+                await System.Threading.Tasks.Task.Run(() =>
+                {
+                    // while (SceneManager.GetActiveScene().name != lobbySceneName)
+                    // {
+                        System.Threading.Thread.Sleep(100);
+                    // }
+                });
+            }
 
             NetworkManager.Singleton.StartHost();
-            NetworkManager.Singleton.SceneManager.LoadScene(lobbySceneName, LoadSceneMode.Single);
+            // NetworkManager.Singleton.SceneManager.LoadScene(lobbySceneName, LoadSceneMode.Single);
             Debug.Log("Code join: " + lobby.LobbyCode);
         }
         catch (LobbyServiceException e)

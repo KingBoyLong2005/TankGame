@@ -21,11 +21,18 @@ public class SpawnPointManager : MonoBehaviour
 
     public Vector3 GetSpawnPosition(int index)
     {
-        if (spawnPoints == null || spawnPoints.Count == 0 || index >= spawnPoints.Count)
+        if (spawnPoints == null || spawnPoints.Count == 0)
         {
-            Debug.LogWarning("No spawn points available or index out of range. Returning default position.");
+            Debug.LogWarning("SpawnPointManager: No spawn points defined. Returning default position.");
             return Vector3.zero;
         }
+
+        if (index < 0 || index >= spawnPoints.Count)
+        {
+            Debug.LogWarning($"SpawnPointManager: Index {index} out of range. Using first spawn point.");
+            return spawnPoints[0].position;
+        }
+
         return spawnPoints[index].position;
     }
 

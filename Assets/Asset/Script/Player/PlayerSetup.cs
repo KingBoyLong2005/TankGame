@@ -26,7 +26,50 @@ public class PlayerSetup : NetworkBehaviour
             default,
             NetworkVariableReadPermission.Everyone,
             NetworkVariableWritePermission.Owner);
+    private void OnEnable()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+    }
 
+    private void OnDisable()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+    {
+        if (!IsOwner) return;
+
+        if (scene.name != "LobbyScene" && localCameraRig == null)
+        {
+            SpawnCameraRig();
+            GetComponent<PlayerController>()?.EnableInput();
+        }
+    }
+    private void SpawnCameraRig()
+    {
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "LobbyScene")
+        {
+            if (cameraRigPrefab == null) return;
+
+            localCameraRig = Instantiate(cameraRigPrefab);
+            DontDestroyOnLoad(localCameraRig);
+            LocalCamera = localCameraRig.GetComponentInChildren<Camera>();
+
+            if (LocalCamera != null) LocalCamera.enabled = true;
+
+            var cc = localCameraRig.GetComponentInChildren<CinemachineCamera>();
+            if (cc != null)
+            {
+                cc.Follow = transform;
+                cc.LookAt = transform;
+                cc.enabled = true;
+            }
+
+            var listener = localCameraRig.GetComponentInChildren<AudioListener>();
+            if (listener != null) listener.enabled = true;
+        }
+    }
     public override void OnNetworkSpawn()
     {
         // --- Áp dụng skin ban đầu (từ network var) ---
@@ -37,6 +80,20 @@ public class PlayerSetup : NetworkBehaviour
         {
             ApplySkin(newV);
         };
+
+        // --- Gán vị trí spawn ---
+        // Chỉ server quyết định vị trí spawn
+        int playerIndex = (int)OwnerClientId; // Dùng ClientId như chỉ số tạm thời
+        Vector3 spawnPosition = Vector3.zero; // Giá trị mặc định
+        if (SpawnPointManager.Instance != null)
+        {
+            spawnPosition = SpawnPointManager.Instance.GetSpawnPosition(playerIndex);
+        }
+        else
+        {
+            Debug.LogWarning("SpawnPointManager.Instance is null. Using default position (0,0,0).");
+        }
+        transform.position = spawnPosition;
 
         // --- Nếu là owner local thì báo server biết skin mình đã chọn ---
         if (IsOwner)
@@ -60,27 +117,31 @@ public class PlayerSetup : NetworkBehaviour
             {
                 Debug.LogWarning("Không tìm thấy skin chọn trong Lobby → giữ mặc định.");
             }
+            // if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "LobbyScene")
+            // {
+            //     // // --- Camera rig spawn (tạm thời không kích hoạt) ---
+            //     // if (cameraRigPrefab != null)
+            //     // {
+            //     //     localCameraRig = Instantiate(cameraRigPrefab);
+            //     //     DontDestroyOnLoad(localCameraRig);
+            //     //     LocalCamera = localCameraRig.GetComponentInChildren<Camera>();
+            //     //     LocalCamera.enabled = false; // Vô hiệu hóa camera
 
-            // --- Camera rig spawn ---
-            if (cameraRigPrefab != null)
-            {
-                localCameraRig = Instantiate(cameraRigPrefab);
-                DontDestroyOnLoad(localCameraRig);
-                LocalCamera = localCameraRig.GetComponentInChildren<Camera>();
+            //     //     var cc = localCameraRig.GetComponentInChildren<CinemachineCamera>();
+            //     //     if (cc != null)
+            //     //     {
+            //     //         cc.Follow = transform;
+            //     //         cc.LookAt = transform;
+            //     //         cc.enabled = false; // Vô hiệu hóa CinemachineCamera
+            //     //     }
 
-                var cc = localCameraRig.GetComponentInChildren<CinemachineCamera>();
-                if (cc != null)
-                {
-                    cc.Follow = transform;
-                    cc.LookAt = transform;
-                }
-
-                var listener = localCameraRig.GetComponentInChildren<AudioListener>();
-                if (listener != null) listener.enabled = true;
-            }
+            //     //     var listener = localCameraRig.GetComponentInChildren<AudioListener>();
+            //     //     if (listener != null) listener.enabled = false; // Vô hiệu hóa AudioListener
+            //     // }
+            //     SpawnCameraRig();
+            // }
         }
     }
-
     public override void OnNetworkDespawn()
     {
         if (IsOwner && localCameraRig != null)
