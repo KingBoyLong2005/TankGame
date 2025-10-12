@@ -631,6 +631,7 @@ MonoBehaviour:
   Error: {fileID: 1167957661}
   PlayerNameInput: {fileID: 204355143}
   lobbySceneName: LobbyScene
+  selectedSkinIndex: 0
 --- !u!4 &209763181
 Transform:
   m_ObjectHideFlags: 0

@@ -25,7 +25,7 @@ public class LobbySceneUI : MonoBehaviour
             int index = i; // tránh capture bug
             skinButtons[i].onClick.AddListener(() =>
             {
-                LobbyGameFlow.Instance.SelectSkin(index);
+                LobbyManager.Instance.SetSelectedSkin(index);
             });
         }
     }

@@ -44,6 +44,8 @@ public class LobbyManager : MonoBehaviour
 
     private string playerName;
 
+    public int selectedSkinIndex = 0;
+
     private void Awake()
     {
         if (Instance == null)
@@ -313,5 +315,11 @@ public class LobbyManager : MonoBehaviour
         {
             playerName = PlayerNameInput.text;
         }
+    }
+
+    public void SetSelectedSkin(int index)
+    {
+        selectedSkinIndex = index;
+        Debug.Log("Đã chọn skin: " + index);
     }
 }

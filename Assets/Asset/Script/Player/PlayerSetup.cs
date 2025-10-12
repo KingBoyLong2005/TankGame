@@ -101,45 +101,10 @@ public class PlayerSetup : NetworkBehaviour
             string myName = LobbyManager.Instance.GetPlayerName();
             playerName.Value = new FixedString64Bytes(myName);
 
-            int mySkin = -1;
+            int mySkin = LobbyManager.Instance.selectedSkinIndex;
+            Debug.Log("Player " + myName + " spawn với skin: " + mySkin);
 
-            // chỉ lấy từ LobbyGameFlow nếu đang ở lobby scene
-            if (LobbyGameFlow.Instance != null)
-            {
-                mySkin = LobbyGameFlow.Instance.GetMySkinIndex();
-            }
-
-            if (mySkin >= 0)
-            {
-                SetSkinServerRpc(mySkin);
-            }
-            else
-            {
-                Debug.LogWarning("Không tìm thấy skin chọn trong Lobby → giữ mặc định.");
-            }
-            // if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "LobbyScene")
-            // {
-            //     // // --- Camera rig spawn (tạm thời không kích hoạt) ---
-            //     // if (cameraRigPrefab != null)
-            //     // {
-            //     //     localCameraRig = Instantiate(cameraRigPrefab);
-            //     //     DontDestroyOnLoad(localCameraRig);
-            //     //     LocalCamera = localCameraRig.GetComponentInChildren<Camera>();
-            //     //     LocalCamera.enabled = false; // Vô hiệu hóa camera
-
-            //     //     var cc = localCameraRig.GetComponentInChildren<CinemachineCamera>();
-            //     //     if (cc != null)
-            //     //     {
-            //     //         cc.Follow = transform;
-            //     //         cc.LookAt = transform;
-            //     //         cc.enabled = false; // Vô hiệu hóa CinemachineCamera
-            //     //     }
-
-            //     //     var listener = localCameraRig.GetComponentInChildren<AudioListener>();
-            //     //     if (listener != null) listener.enabled = false; // Vô hiệu hóa AudioListener
-            //     // }
-            //     SpawnCameraRig();
-            // }
+            SetSkinServerRpc(mySkin);
         }
     }
     public override void OnNetworkDespawn()
