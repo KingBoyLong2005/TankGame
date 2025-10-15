@@ -33,32 +33,32 @@ public class LobbyGameFlow : MonoBehaviour
         return null;
     }
 
-    public async void SelectSkin(int skinIndex)
-    {
-        try
-        {
-            if (LM.joinLobby == null) return;
+    // public async void SelectSkin(int skinIndex)
+    // {
+    //     try
+    //     {
+    //         if (LM.joinLobby == null) return;
 
-            var update = new UpdatePlayerOptions
-            {
-                Data = new Dictionary<string, PlayerDataObject>
-                {
-                    { "Skin", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, skinIndex.ToString()) },
-                    { "IsReady", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, "false") }
-                }
-            };
+    //         var update = new UpdatePlayerOptions
+    //         {
+    //             Data = new Dictionary<string, PlayerDataObject>
+    //             {
+    //                 { "Skin", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, skinIndex.ToString()) },
+    //                 { "IsReady", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, "false") }
+    //             }
+    //         };
 
-            // sau khi joinLobby được update
-            var myPlayer = NetworkManager.Singleton.LocalClient.PlayerObject;
-            if (myPlayer != null && myPlayer.TryGetComponent(out PlayerSetup setup))
-            {
-                setup.CmdRequestChangeSkinServerRpc(skinIndex);
-            }
+    //         // sau khi joinLobby được update
+    //         var myPlayer = NetworkManager.Singleton.LocalClient.PlayerObject;
+    //         if (myPlayer != null && myPlayer.TryGetComponent(out PlayerSetup setup))
+    //         {
+    //             setup.CmdRequestChangeSkinServerRpc(skinIndex);
+    //         }
 
-            LM.joinLobby = await LobbyService.Instance.UpdatePlayerAsync(LM.joinLobby.Id, AuthenticationService.Instance.PlayerId, update);
-        }
-        catch (Exception e) { Debug.LogError("SelectSkin error: " + e); }
-    }
+    //         LM.joinLobby = await LobbyService.Instance.UpdatePlayerAsync(LM.joinLobby.Id, AuthenticationService.Instance.PlayerId, update);
+    //     }
+    //     catch (Exception e) { Debug.LogError("SelectSkin error: " + e); }
+    // }
 
     public async void SetReady(bool ready)
     {

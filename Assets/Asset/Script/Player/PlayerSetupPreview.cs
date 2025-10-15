@@ -11,7 +11,7 @@ public class PlayerSetupPreview : MonoBehaviour
         var skin = skinDatabase.GetSkinByIndex(index);
         if (skin == null) return;
 
-        if (bodyRenderer) bodyRenderer.sprite = skin.bodySprite;
-        if (turretRenderer) turretRenderer.sprite = skin.turretSprite;
+        if (bodyRenderer != null) bodyRenderer.sprite = skin.bodySprite;
+        if (turretRenderer != null) turretRenderer.sprite = skin.turretSprite;
     }
 }
