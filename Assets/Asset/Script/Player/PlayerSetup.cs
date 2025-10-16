@@ -22,20 +22,12 @@ public class PlayerSetup : NetworkBehaviour
         new NetworkVariable<FixedString64Bytes>(
             default, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
 
-    private void OnEnable()
-    {
-        UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
-    }
-
-    private void OnDisable()
-    {
-        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
-    }
+    private void OnEnable() => UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+    private void OnDisable() => UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
 
     private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
     {
         if (!IsOwner) return;
-
         if (scene.name != "LobbyScene" && localCameraRig == null)
         {
             SpawnCameraRig();
@@ -52,14 +44,11 @@ public class PlayerSetup : NetworkBehaviour
         DontDestroyOnLoad(localCameraRig);
         LocalCamera = localCameraRig.GetComponentInChildren<Camera>();
 
-        if (LocalCamera != null) LocalCamera.enabled = true;
-
         var cc = localCameraRig.GetComponentInChildren<CinemachineCamera>();
         if (cc != null)
         {
             cc.Follow = transform;
             cc.LookAt = transform;
-            cc.enabled = true;
         }
 
         var listener = localCameraRig.GetComponentInChildren<AudioListener>();
@@ -68,13 +57,9 @@ public class PlayerSetup : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
-        // Áp dụng skin hiện có
         ApplySkin(skinIndex.Value);
-
-        // Theo dõi thay đổi skin từ server
         skinIndex.OnValueChanged += (oldV, newV) => ApplySkin(newV);
 
-        // Gán vị trí spawn
         int playerIndex = (int)OwnerClientId;
         Vector3 spawnPosition = SpawnPointManager.Instance
             ? SpawnPointManager.Instance.GetSpawnPosition(playerIndex)
@@ -88,13 +73,10 @@ public class PlayerSetup : NetworkBehaviour
 
     private System.Collections.IEnumerator SendSkinDataToServer()
     {
-        // Chờ LobbyManager chắc chắn tồn tại
         yield return new WaitUntil(() => LobbyManager.Instance != null);
 
         string myName = LobbyManager.Instance.GetPlayerName();
         int mySkin = LobbyManager.Instance.selectedSkinIndex;
-
-        Debug.Log($"🟢 {myName} đang spawn với skin index: {mySkin}");
 
         playerName.Value = new FixedString64Bytes(myName);
         SetSkinServerRpc(mySkin);
@@ -103,37 +85,24 @@ public class PlayerSetup : NetworkBehaviour
     public override void OnNetworkDespawn()
     {
         if (IsOwner && localCameraRig != null)
-        {
-            Debug.Log("Destroy camera rig của player local");
             Destroy(localCameraRig);
-        }
     }
 
     [ServerRpc(RequireOwnership = true)]
     public void SetSkinServerRpc(int idx, ServerRpcParams rpcParams = default)
     {
         if (idx < 0 || idx >= skinDatabase.skins.Count) idx = 0;
-        Debug.Log($"📡 Server nhận SetSkinServerRpc({idx}) từ client {OwnerClientId}");
         skinIndex.Value = idx;
     }
 
     private void ApplySkin(int idx)
     {
         var skin = skinDatabase.GetSkinByIndex(idx);
-        if (skin == null)
-        {
-            Debug.LogWarning($"⚠️ Không tìm thấy skin index {idx} trong database!");
-            return;
-        }
+        if (skin == null) return;
 
         if (bodyRenderer != null) bodyRenderer.sprite = skin.bodySprite;
         if (turretRenderer != null) turretRenderer.sprite = skin.turretSprite;
-
-        Debug.Log($"🎨 Player {OwnerClientId} áp dụng skin: {skin.displayName} (index {idx})");
     }
 
-    public string GetPlayerName()
-    {
-        return playerName.Value.ToString();
-    }
+    public string GetPlayerName() => playerName.Value.ToString();
 }
