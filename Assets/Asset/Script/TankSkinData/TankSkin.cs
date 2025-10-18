@@ -12,9 +12,9 @@ public class TankSkin
     public Sprite turretSprite;  
     
     [Header("Visuals")]
-    public Sprite icon;                   // Icon hiển thị trong nút chọn skin
+    // public Sprite icon;                   // Icon hiển thị trong nút chọn skin
     public GameObject previewPrefab;      // Prefab dùng cho hiển thị preview (trong lobby)
-    public GameObject inGamePrefab;       // Prefab dùng khi spawn vào trận thực tế
+    // public GameObject inGamePrefab;       // Prefab dùng khi spawn vào trận thực tế
 
     [Header("Gameplay/Meta")]
     public int unlockLevel;               // Mở khóa ở level mấy (nếu có progression)

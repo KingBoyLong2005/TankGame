@@ -13,6 +13,8 @@ using Unity.Services.Relay.Models;
 using TMPro;
 using UnityEngine.SceneManagement;
 using Unity.VisualScripting;
+using Mono.Cecil.Cil;
+using System.Threading.Tasks;
 
 public class LobbyManager : MonoBehaviour
 {
@@ -42,10 +44,13 @@ public class LobbyManager : MonoBehaviour
     private const float CHECK_INACTIVE_INTERVAL = 10f;
     private const int TIMEOUT_SECONDS = 30;
 
+    private string lastLobbyDataJson = "";
+
     private string playerName;
 
     public int selectedSkinIndex = 0;
-
+    public Action OnLobbyUpdated;
+    private ILobbyEvents lobbyEvents;
     private void Awake()
     {
         if (Instance == null)
@@ -86,6 +91,7 @@ public class LobbyManager : MonoBehaviour
         HandleLobbyPollForUpdate();
         ClientSendLastSeen();
         HostCheckInactivePlayers();
+
     }
 
     private bool IsLobbyHost()
@@ -94,6 +100,7 @@ public class LobbyManager : MonoBehaviour
     }
 
     #region Heartbeat & Poll
+
     private async void HandleLobbyHeartBeat()
     {
         if (!IsLobbyHost()) return;
@@ -120,7 +127,16 @@ public class LobbyManager : MonoBehaviour
             updateLobbyPollTimer = LOBBY_POLL_INTERVAL;
             try
             {
-                joinLobby = await LobbyService.Instance.GetLobbyAsync(joinLobby.Id);
+                var updatedLobby = await LobbyService.Instance.GetLobbyAsync(joinLobby.Id);
+                string newJson = JsonUtility.ToJson(updatedLobby);
+
+                // So sánh để tránh gọi refresh liên tục
+                if (newJson != lastLobbyDataJson)
+                {
+                    lastLobbyDataJson = newJson;
+                    joinLobby = updatedLobby;
+                    OnLobbyUpdated?.Invoke();
+                }
             }
             catch { updateLobbyPollTimer = LOBBY_POLL_INTERVAL + 5f; }
         }
@@ -198,6 +214,7 @@ public class LobbyManager : MonoBehaviour
             var lobby = await LobbyService.Instance.CreateLobbyAsync(lobbyName, maxPlayer, createLobbyOptions);
             hostLobby = lobby;
             joinLobby = lobby;
+            await SubscribeToLobbyEvents(lobby.Id);
 
             Allocation allocation = await RelayService.Instance.CreateAllocationAsync(maxPlayer - 1);
             string relayCode = await RelayService.Instance.GetJoinCodeAsync(allocation.AllocationId);
@@ -253,6 +270,7 @@ public class LobbyManager : MonoBehaviour
             CheckName(PlayerNameInput);
             joinLobby = await LobbyService.Instance.JoinLobbyByCodeAsync(lobbyCode, new JoinLobbyByCodeOptions { Player = GetPlayer() });
 
+            await SubscribeToLobbyEvents(joinLobby.Id);
             string relayCode = joinLobby.Data["RelayCode"].Value;
             JoinAllocation joinAlloc = await RelayService.Instance.JoinAllocationAsync(relayCode);
 
@@ -282,6 +300,30 @@ public class LobbyManager : MonoBehaviour
         }
     }
     #endregion
+
+    private async Task SubscribeToLobbyEvents(string lobbyId)
+    {
+        var callbacks = new LobbyEventCallbacks();
+
+        callbacks.LobbyChanged += (lobby) =>
+        {
+            joinLobby = hostLobby;
+            OnLobbyUpdated?.Invoke();
+            Debug.Log("Lobby updated in real-time!");
+        };
+
+        callbacks.KickedFromLobby += () =>
+        {
+            Debug.Log("You were kicked from the lobby!");
+        };
+
+        callbacks.LobbyDeleted += () =>
+        {
+            Debug.Log("Lobby deleted!");
+        };
+
+        lobbyEvents = await LobbyService.Instance.SubscribeToLobbyEventsAsync(lobbyId, callbacks);
+    }
 
     public Player GetPlayer()
     {
@@ -316,6 +358,7 @@ public class LobbyManager : MonoBehaviour
             playerName = PlayerNameInput.text;
         }
     }
+    public string GetCodeLobby() => joinLobby.LobbyCode;
 
     public void SetSelectedSkin(int index)
     {

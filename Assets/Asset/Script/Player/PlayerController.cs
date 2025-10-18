@@ -6,6 +6,7 @@ using Unity.Cinemachine;
 public class PlayerController : MonoBehaviour
 {
     private Camera mainCamera;
+    public LayerMask wallLayer;
 
     [Header("Movement Settings")]
     [SerializeField] private float maxSpeed = 5f; // Tốc độ tối đa
@@ -27,6 +28,7 @@ public class PlayerController : MonoBehaviour
     private PlayerSetup playerSetup;
     private Vector2 moveInput;
     private Rigidbody2D rb;
+    private Collider2D col;
     private float targetBodyAngle;
     private float currentBodyAngle;
     private bool isInputEnabled = false; // Kiểm soát trạng thái input
@@ -59,6 +61,7 @@ public class PlayerController : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         rb.gravityScale = 0f;
         rb.freezeRotation = false;
+        col = GetComponent<Collider2D>();
     }
 
     private void Update()
@@ -113,8 +116,37 @@ public class PlayerController : MonoBehaviour
         // Move toward target speed
         float newSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed, accelRate * Time.fixedDeltaTime);
 
-        // Update velocity along forward direction (no sideways sliding)
-        rb.linearVelocity = forward * newSpeed;
+        if (moveInput.magnitude > 0.01f)
+        {
+            float moveDistance = newSpeed * Time.fixedDeltaTime;
+            Vector2 boxSize = col.bounds.size * 0.9f; // giảm nhẹ 10% để tránh kẹt mép
+
+            RaycastHit2D hit = Physics2D.BoxCast(
+                rb.position,
+                boxSize,
+                0f,
+                forward,
+                moveDistance,
+                wallLayer
+            );
+
+            // Vẽ debug box để xem vùng kiểm tra
+            Color rayColor = (hit.collider != null) ? Color.red : Color.green;
+            Debug.DrawRay(rb.position, forward * moveDistance, rayColor, 0.1f);
+
+            if (hit.collider == null)
+            {
+                rb.linearVelocity = forward * newSpeed; // Không có tường → di chuyển bình thường
+            }
+            else
+            {
+                rb.linearVelocity = Vector2.zero; // Có tường → dừng lại
+            }
+        }
+        else
+        {
+            rb.linearVelocity = Vector2.zero;
+        }
     }
 
     // Phương thức để kích hoạt input khi chuyển sang scene chơi

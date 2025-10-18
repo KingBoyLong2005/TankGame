@@ -1,15 +1,16 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using Unity.Netcode;
-using Unity.Services.Authentication;
 using Unity.Services.Lobbies;
 using Unity.Services.Lobbies.Models;
+using Unity.Services.Authentication;
+using Unity.Netcode;
 using System.Collections.Generic;
 
-public class LobbySkinPreview : NetworkBehaviour
+public class PlayerSlotUI : MonoBehaviour
 {
     [Header("UI References")]
+    [SerializeField] private TMP_Text playerNameText;
     [SerializeField] private Button buttonPrev;
     [SerializeField] private Button buttonNext;
     [SerializeField] private Transform previewPoint;
@@ -17,28 +18,31 @@ public class LobbySkinPreview : NetworkBehaviour
     [Header("Skin Settings")]
     [SerializeField] private TankSkinDatabase skinDatabase;
 
-    private GameObject currentPreview;
-    private int currentSkinIndex = 0;
+    private GameObject previewObj;
+    private int skinIndex;
+    private bool isLocal;
 
-    private void Start()
+    public void Setup(string playerName, bool isLocalPlayer, int initialSkin)
     {
-        if (skinDatabase == null || skinDatabase.skins.Count == 0)
+        playerNameText.text = playerName;
+        isLocal = isLocalPlayer;
+        skinIndex = initialSkin;
+
+        buttonPrev.gameObject.SetActive(isLocal);
+        buttonNext.gameObject.SetActive(isLocal);
+
+        if (isLocal)
         {
-            Debug.LogError("Không tìm thấy database skin!");
-            return;
+            buttonPrev.onClick.AddListener(PrevSkin);
+            buttonNext.onClick.AddListener(NextSkin);
         }
 
-        buttonPrev?.onClick.AddListener(PrevSkin);
-        buttonNext?.onClick.AddListener(NextSkin);
-
-        ShowSkin(currentSkinIndex);
+        ShowSkin(skinIndex);
     }
 
-    
     private void ShowSkin(int index)
     {
-        if (currentPreview != null)
-            Destroy(currentPreview);
+        if (previewObj != null) Destroy(previewObj);
 
         var skin = skinDatabase.GetSkinByIndex(index);
         if (skin == null)
@@ -47,17 +51,18 @@ public class LobbySkinPreview : NetworkBehaviour
             return;
         }
 
-        currentPreview = Instantiate(skin.previewPrefab, previewPoint);
-        var setup = currentPreview.GetComponent<PlayerSetupPreview>();
+        previewObj = Instantiate(skin.previewPrefab, previewPoint);
+        var setup = previewObj.GetComponent<PlayerSetupPreview>();
         setup?.ApplySkin(index);
-
-        LobbyManager.Instance?.SetSelectedSkin(index);
-        currentSkinIndex = index;
     }
 
     private async void ChangeSkin(int index)
     {
         ShowSkin(index);
+        skinIndex = index;
+
+        LobbyManager.Instance?.SetSelectedSkin(index);
+        FindFirstObjectByType<PlayerSetup>()?.SetSkinServerRpc(index);
 
         try
         {
@@ -78,8 +83,6 @@ public class LobbySkinPreview : NetworkBehaviour
                     update
                 );
             }
-
-            FindFirstObjectByType<PlayerSetup>()?.SetSkinServerRpc(index);
         }
         catch (System.Exception e)
         {
@@ -89,19 +92,15 @@ public class LobbySkinPreview : NetworkBehaviour
 
     private void NextSkin()
     {
-        currentSkinIndex++;
-        if (currentSkinIndex >= skinDatabase.skins.Count)
-            currentSkinIndex = 0;
-        ChangeSkin(currentSkinIndex);
+        skinIndex++;
+        if (skinIndex >= skinDatabase.skins.Count) skinIndex = 0;
+        ChangeSkin(skinIndex);
     }
 
     private void PrevSkin()
     {
-        currentSkinIndex--;
-        if (currentSkinIndex < 0)
-            currentSkinIndex = skinDatabase.skins.Count - 1;
-        ChangeSkin(currentSkinIndex);
+        skinIndex--;
+        if (skinIndex < 0) skinIndex = skinDatabase.skins.Count - 1;
+        ChangeSkin(skinIndex);
     }
-
-    public int GetSkinIndex() => currentSkinIndex;
 }
