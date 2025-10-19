@@ -88,7 +88,7 @@ public class PlayerSetup : NetworkBehaviour
             Destroy(localCameraRig);
     }
 
-    [ServerRpc(RequireOwnership = true)]
+    [ServerRpc(RequireOwnership = false)]
     public void SetSkinServerRpc(int idx, ServerRpcParams rpcParams = default)
     {
         if (idx < 0 || idx >= skinDatabase.skins.Count) idx = 0;

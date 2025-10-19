@@ -5,6 +5,7 @@ using Unity.Services.Lobbies.Models;
 using TMPro;
 using Unity.Services.Lobbies;
 using System.Threading.Tasks;
+using Unity.Netcode;
 
 public class LobbySceneUI : MonoBehaviour
 {
@@ -13,22 +14,12 @@ public class LobbySceneUI : MonoBehaviour
     [SerializeField] private Button addBotButton;
     [SerializeField] private Button Ready;
     [SerializeField] private Button CancelReady;
-    [SerializeField] private Button Refresh;
     [SerializeField] private TMP_Text CodeLobby;
 
     private List<GameObject> slots = new List<GameObject>();
 
     private Dictionary<string, int> botSkins = new();
 
-    private void OnEnable()
-    {
-        LobbyManager.Instance.OnLobbyUpdated += RefreshLobby;
-    }
-
-    private void OnDisable()
-    {
-        LobbyManager.Instance.OnLobbyUpdated -= RefreshLobby;
-    }
 
     private void Start()
     {
@@ -40,15 +31,19 @@ public class LobbySceneUI : MonoBehaviour
         {
             LobbyGameFlow.Instance.SetReady(false);
         });
-        Refresh.onClick.AddListener(() =>
-        {
-            RefreshLobby();
-        });
 
         addBotButton.onClick.AddListener(AddBot);
         CodeLobby.text = LobbyManager.Instance.GetCodeLobby();
-        RefreshLobby();
+        // RefreshLobby();
+        // if (LobbyManager.Instance != null)
+        //     LobbyManager.Instance.OnLobbyUpdated += RefreshLobby;
     }
+    
+    // private void OnDestroy()
+    // {
+    //     if (LobbyManager.Instance != null)
+    //         LobbyManager.Instance.OnLobbyUpdated -= RefreshLobby;
+    // }
 
     private void Update()
     {
@@ -56,47 +51,25 @@ public class LobbySceneUI : MonoBehaviour
         LobbyGameFlow.Instance.TryCheckAllReady();
     }
 
-    private void RefreshLobby()
+    public void RefreshLobby(List<ulong> playerIds)
     {
-        foreach (var s in slots) Destroy(s);
-        slots.Clear();
+        foreach (Transform child in playerListContainer)
+            Destroy(child.gameObject);
 
         var lobby = LobbyManager.Instance.joinLobby;
-        if (lobby == null) return;
-
-        // --- Hiển thị bots ---
-        if (lobby.Data != null && lobby.Data.ContainsKey("Bots"))
+        foreach (ulong id in playerIds)
         {
-            string botData = lobby.Data["Bots"].Value;
-            string[] botNames = botData.Split(';');
-
-            foreach (string botName in botNames)
-            {
-                if (string.IsNullOrEmpty(botName)) continue;
-                
-                if (!botSkins.ContainsKey(botName))
-                    botSkins[botName] = Random.Range(0, 3); // chỉ random 1 lần
-                
-                var slot = Instantiate(playerSlotPrefab, playerListContainer);
-                slot.GetComponent<PlayerSlotUI>().Setup(botName, false, botSkins[botName]);
-                slots.Add(slot);
-            }
-        }
-
-        // --- Hiển thị người chơi ---
-        foreach (var p in lobby.Players)
-        {
-            string name = p.Data.ContainsKey("PlayerName") ? p.Data["PlayerName"].Value : "Unknown";
-            bool isLocal = p.Id == LobbyManager.Instance.GetPlayerId();
-            int skin = p.Data.ContainsKey("Skin") ? int.Parse(p.Data["Skin"].Value) : 0;
-
             var slot = Instantiate(playerSlotPrefab, playerListContainer);
+            var isLocal = id == NetworkManager.Singleton.LocalClientId;
+            string name = LobbyManager.Instance.GetPlayerName();
+
+            int skin = lobby.Data.ContainsKey("Skin") ? int.Parse(lobby.Data["Skin"].Value) : 0;
+            
+
             slot.GetComponent<PlayerSlotUI>().Setup(name, isLocal, skin);
-            slots.Add(slot);
-            slot.transform.SetAsLastSibling();
         }
-        
     }
+
     private async void AddBot()
     {
         if (slots.Count >= 4) return;
@@ -130,7 +103,6 @@ public class LobbySceneUI : MonoBehaviour
 
             Debug.Log($"✅ Bot '{newBotName}' added to lobby data!");
             LobbyManager.Instance.joinLobby = lobby; // update bản nhớ cục bộ
-            LobbyManager.Instance.OnLobbyUpdated?.Invoke();
         }
         catch (System.Exception e)
         {

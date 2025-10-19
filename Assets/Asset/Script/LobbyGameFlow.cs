@@ -124,4 +124,33 @@ public class LobbyGameFlow : MonoBehaviour
 
         return -1;
     }
+
+    // public async void SetSkin(int skinIndex)
+    // {
+    //     try
+    //     {
+    //         if (LM.joinLobby == null) return;
+
+    //         var update = new UpdatePlayerOptions
+    //         {
+    //             Data = new Dictionary<string, PlayerDataObject>
+    //             {
+    //                 { "Skin", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, skinIndex.ToString()) }
+    //             }
+    //         };
+
+    //         LM.joinLobby = await LobbyService.Instance.UpdatePlayerAsync(
+    //             LM.joinLobby.Id,
+    //             AuthenticationService.Instance.PlayerId,
+    //             update
+    //         );
+
+    //         Debug.Log($"✅ Updated skin for player {AuthenticationService.Instance.PlayerId} = {skinIndex}");
+    //     }
+    //     catch (System.Exception e)
+    //     {
+    //         Debug.LogError("SetSkin error: " + e);
+    //     }
+    // }
+
 }
