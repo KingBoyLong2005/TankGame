@@ -34,9 +34,17 @@ public class LobbySceneUI : MonoBehaviour
 
         addBotButton.onClick.AddListener(AddBot);
         CodeLobby.text = LobbyManager.Instance.GetCodeLobby();
-        // RefreshLobby();
-        // if (LobbyManager.Instance != null)
-        //     LobbyManager.Instance.OnLobbyUpdated += RefreshLobby;
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsClient)
+        {
+            // Khi client vào scene Lobby
+            if (LobbyPlayersManager.Instance != null)
+            {
+                LobbyPlayersManager.Instance.RegisterMapping(
+                    NetworkManager.Singleton.LocalClientId,
+                    LobbyManager.Instance.GetPlayerId()
+                );
+            }
+        }
     }
     
     // private void OnDestroy()
@@ -53,23 +61,56 @@ public class LobbySceneUI : MonoBehaviour
 
     public void RefreshLobby(List<ulong> playerIds)
     {
+        if (LobbyManager.Instance == null || LobbyManager.Instance.joinLobby == null)
+            return;
+
+        var lobby = LobbyManager.Instance.joinLobby;
+
         foreach (Transform child in playerListContainer)
             Destroy(child.gameObject);
 
-        var lobby = LobbyManager.Instance.joinLobby;
+        slots.Clear();
+
+        // --- Hiển thị bot ---
+        if (lobby.Data != null && lobby.Data.ContainsKey("Bots"))
+        {
+            string botData = lobby.Data["Bots"].Value;
+            string[] botNames = botData.Split(';');
+
+            foreach (string botName in botNames)
+            {
+                if (string.IsNullOrEmpty(botName)) continue;
+                if (!botSkins.ContainsKey(botName))
+                    botSkins[botName] = Random.Range(0, 3);
+
+                var botSlot = Instantiate(playerSlotPrefab, playerListContainer);
+                botSlot.GetComponent<PlayerSlotUI>().Setup(botName, false, botSkins[botName]);
+                slots.Add(botSlot);
+            }
+        }
+
+        // --- Hiển thị người chơi thực ---
         foreach (ulong id in playerIds)
         {
-            var slot = Instantiate(playerSlotPrefab, playerListContainer);
-            var isLocal = id == NetworkManager.Singleton.LocalClientId;
-            string name = LobbyManager.Instance.GetPlayerName();
+            string name = "Unknown";
+            int skin = 0;
+            bool isLocal = id == NetworkManager.Singleton.LocalClientId;
 
-            int skin = lobby.Data.ContainsKey("Skin") ? int.Parse(lobby.Data["Skin"].Value) : 0;
-            
+            if (LobbyPlayersManager.Instance.networkToLobbyId.TryGetValue(id, out string lobbyId))
+            {
+                var p = lobby.Players.Find(pl => pl.Id == lobbyId);
+                if (p != null)
+                {
+                    name = p.Data.ContainsKey("PlayerName") ? p.Data["PlayerName"].Value : "Unknown";
+                    skin = p.Data.ContainsKey("Skin") ? int.Parse(p.Data["Skin"].Value) : 0;
+                }
+            }
 
-            slot.GetComponent<PlayerSlotUI>().Setup(name, isLocal, skin);
+            var playerSlot = Instantiate(playerSlotPrefab, playerListContainer);
+            playerSlot.GetComponent<PlayerSlotUI>().Setup(name, isLocal, skin);
+            slots.Add(playerSlot);
         }
     }
-
     private async void AddBot()
     {
         if (slots.Count >= 4) return;
