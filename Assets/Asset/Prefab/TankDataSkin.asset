@@ -17,15 +17,27 @@ MonoBehaviour:
     displayName: HullA
     bodySprite: {fileID: 21300000, guid: 1501f4250ccf4e040b4a1da68dd72081, type: 3}
     turretSprite: {fileID: 21300000, guid: ceadaf9a30542554c8148d119bb629c8, type: 3}
+    previewPrefab: {fileID: 1236826594959323467, guid: 70285a431219d9f44b693e9262184b88, type: 3}
+    unlockLevel: 0
+    isDefault: 1
   - id: 1
     displayName: HullB
     bodySprite: {fileID: 21300000, guid: 9ac7765c1db4a6f4ea82ceca0e84c5ab, type: 3}
     turretSprite: {fileID: 21300000, guid: cd97be8deb55ff242b0e53e327635c63, type: 3}
+    previewPrefab: {fileID: 1236826594959323467, guid: 98373869b12f9e141b6b9151258058f2, type: 3}
+    unlockLevel: 0
+    isDefault: 0
   - id: 2
     displayName: HullC
     bodySprite: {fileID: 21300000, guid: 5e9a7d8a8a8faa44e8645993b9d75b82, type: 3}
     turretSprite: {fileID: 21300000, guid: c9d741680d73bbd439effa9d6c60cccf, type: 3}
+    previewPrefab: {fileID: 1236826594959323467, guid: 9c781ed6575b3dd40a9f22f52590fa58, type: 3}
+    unlockLevel: 0
+    isDefault: 0
   - id: 3
     displayName: HullD
     bodySprite: {fileID: 21300000, guid: b66dd8b096613994484467dd5d159fb4, type: 3}
     turretSprite: {fileID: 21300000, guid: 0195007007bef9945ac29e564e1a54d4, type: 3}
+    previewPrefab: {fileID: 1236826594959323467, guid: 014d847f7f4451b49b68ad5d74423aad, type: 3}
+    unlockLevel: 0
+    isDefault: 0

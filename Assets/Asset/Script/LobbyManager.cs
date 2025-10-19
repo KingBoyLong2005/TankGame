@@ -13,6 +13,7 @@ using Unity.Services.Relay.Models;
 using TMPro;
 using UnityEngine.SceneManagement;
 using Unity.VisualScripting;
+using System.Threading.Tasks;
 
 public class LobbyManager : MonoBehaviour
 {
@@ -43,6 +44,9 @@ public class LobbyManager : MonoBehaviour
     private const int TIMEOUT_SECONDS = 30;
 
     private string playerName;
+    private string lastLobbyDataJson = "";
+    public Action OnLobbyUpdated;
+    public int selectedSkinIndex = 0;
 
     private void Awake()
     {
@@ -118,11 +122,29 @@ public class LobbyManager : MonoBehaviour
             updateLobbyPollTimer = LOBBY_POLL_INTERVAL;
             try
             {
-                joinLobby = await LobbyService.Instance.GetLobbyAsync(joinLobby.Id);
+                var updatedLobby = await LobbyService.Instance.GetLobbyAsync(joinLobby.Id);
+                string newJson = JsonUtility.ToJson(updatedLobby);
+
+                if (newJson != lastLobbyDataJson)
+                {
+                    lastLobbyDataJson = newJson;
+                    joinLobby = updatedLobby;
+                    
+                    // 🔥 Nếu là host thì cập nhật luôn hostLobby
+                    if (IsLobbyHost())
+                        hostLobby = updatedLobby;
+
+                    OnLobbyUpdated?.Invoke();
+                }
             }
-            catch { updateLobbyPollTimer = LOBBY_POLL_INTERVAL + 5f; }
+            catch (Exception e)
+            {
+                Debug.LogWarning("Poll update failed: " + e.Message);
+                updateLobbyPollTimer = LOBBY_POLL_INTERVAL + 5f;
+            }
         }
     }
+
 
     private async void ClientSendLastSeen()
     {
@@ -210,19 +232,20 @@ public class LobbyManager : MonoBehaviour
             
             // Đảm bảo scene LobbyScene được tải trước khi start host
             // if (SceneManager.GetActiveScene().name != lobbySceneName)
-            {
-                SceneManager.LoadScene(lobbySceneName, LoadSceneMode.Single);
-                // Đợi scene tải hoàn tất
-                await System.Threading.Tasks.Task.Run(() =>
-                {
-                    // while (SceneManager.GetActiveScene().name != lobbySceneName)
-                    // {
-                        System.Threading.Thread.Sleep(100);
-                    // }
-                });
-            }
 
-            NetworkManager.Singleton.StartHost();
+            SceneManager.LoadScene(lobbySceneName, LoadSceneMode.Single);
+            // Đợi scene tải hoàn tất
+            await System.Threading.Tasks.Task.Run(() =>
+            {
+                // while (SceneManager.GetActiveScene().name != lobbySceneName)
+                // {
+                System.Threading.Thread.Sleep(100);
+                    SceneManager.sceneLoaded += OnLobbySceneLoaded_Host;
+                // }
+            });
+            
+
+            // NetworkManager.Singleton.StartHost();
             // NetworkManager.Singleton.SceneManager.LoadScene(lobbySceneName, LoadSceneMode.Single);
             Debug.Log("Code join: " + lobby.LobbyCode);
         }
@@ -257,7 +280,11 @@ public class LobbyManager : MonoBehaviour
             var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
             transport.SetRelayServerData(AllocationUtils.ToRelayServerData(joinAlloc, "wss"));
 
-            NetworkManager.Singleton.StartClient();
+            SceneManager.sceneLoaded += OnLobbySceneLoaded_Client;
+            SceneManager.LoadScene(lobbySceneName, LoadSceneMode.Single);
+
+
+            // NetworkManager.Singleton.StartClient();
         }
         catch (RelayServiceException e)
         {
@@ -280,6 +307,50 @@ public class LobbyManager : MonoBehaviour
         }
     }
     #endregion
+    
+    private async void OnLobbySceneLoaded_Host(Scene scene, LoadSceneMode mode)
+{
+    if (scene.name != lobbySceneName) return;
+    SceneManager.sceneLoaded -= OnLobbySceneLoaded_Host;
+
+    // Gán lại joinLobby = hostLobby để UI đọc được
+    joinLobby = hostLobby;
+
+    // Đảm bảo UI có đủ dữ liệu để hiển thị
+    OnLobbyUpdated?.Invoke();
+
+    await Task.Delay(500); // chờ các MonoBehaviour khác khởi tạo xong
+
+    // Bắt đầu host sau khi scene đã khởi tạo xong
+    NetworkManager.Singleton.StartHost();
+}
+
+    private async void OnLobbySceneLoaded_Client(Scene scene, LoadSceneMode mode)
+{
+    if (scene.name != lobbySceneName) return;
+    SceneManager.sceneLoaded -= OnLobbySceneLoaded_Client;
+
+    // Gửi sự kiện cập nhật đầu tiên để UI hiển thị host + client
+    OnLobbyUpdated?.Invoke();
+
+    await Task.Delay(500); // chờ UI hoàn tất khởi tạo
+
+    NetworkManager.Singleton.StartClient();
+}
+
+    private void OnLobbySceneLoaded(Scene scene, LoadSceneMode mode)
+{
+    if (scene.name == lobbySceneName)
+    {
+        // Gán lại joinLobby = hostLobby cho chắc chắn
+        joinLobby = hostLobby;
+
+        // Gửi tín hiệu cập nhật đầu tiên
+        OnLobbyUpdated?.Invoke();
+
+        SceneManager.sceneLoaded -= OnLobbySceneLoaded;
+    }
+}
 
     public Player GetPlayer()
     {
@@ -303,6 +374,7 @@ public class LobbyManager : MonoBehaviour
     {
         return playerName;
     }
+    public string GetCodeLobby() => joinLobby.LobbyCode;
     private void CheckName(TMP_InputField playerNameCheck)
     {
         if (playerNameCheck.text == "")
@@ -313,5 +385,11 @@ public class LobbyManager : MonoBehaviour
         {
             playerName = PlayerNameInput.text;
         }
+    }
+
+    public void SetSelectedSkin(int index)
+    {
+        selectedSkinIndex = index;
+        Debug.Log("Đã chọn skin: " + index);
     }
 }

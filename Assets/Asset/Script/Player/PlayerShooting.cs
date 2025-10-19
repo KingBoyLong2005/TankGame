@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Unity.Netcode;
+using UnityEngine.SceneManagement;
 
 public class PlayerShooting : NetworkBehaviour
 {
@@ -15,15 +16,24 @@ public class PlayerShooting : NetworkBehaviour
 
     private float nextFireTime = 0f;
     private PlayerSetup playerSetup;
+    private bool isInputEnabled = false;
 
     private void OnEnable()
     {
-        fireAction.Enable();
+        if (SceneManager.GetActiveScene().name != "LobbyScene")
+        {
+            fireAction.Enable();
+            isInputEnabled = true;
+        }
     }
 
     private void OnDisable()
     {
-        fireAction.Disable();
+        if (SceneManager.GetActiveScene().name != "LobbyScene")
+        {
+            fireAction.Disable();
+            isInputEnabled = false;
+        }
     }
 
     private void Start()
@@ -33,7 +43,7 @@ public class PlayerShooting : NetworkBehaviour
 
     private void Update()
     {
-        if (playerSetup != null && playerSetup.IsOwner && fireAction.IsPressed() && Time.time >= nextFireTime)
+        if (!isInputEnabled && playerSetup != null && playerSetup.IsOwner && fireAction.IsPressed() && Time.time >= nextFireTime)
         {
             nextFireTime = Time.time + fireRate;
             ShootServerRpc();
