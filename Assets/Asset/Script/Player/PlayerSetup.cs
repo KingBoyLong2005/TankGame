@@ -61,12 +61,8 @@ public class PlayerSetup : NetworkBehaviour
         skinIndex.OnValueChanged += (oldV, newV) => ApplySkin(newV);
 
         int playerIndex = (int)OwnerClientId;
-        Vector3 spawnPosition = SpawnPointManager.Instance
-            ? SpawnPointManager.Instance.GetSpawnPosition(playerIndex)
-            : Vector3.zero;
-
-        transform.position = spawnPosition;
-
+        Vector3 spawnPos = SpawnPointManager.Instance.GetNextSpawnPosition();
+            transform.position = spawnPos;
         if (IsOwner)
             StartCoroutine(SendSkinDataToServer());
     }

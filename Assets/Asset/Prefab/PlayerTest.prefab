@@ -14,9 +14,9 @@ GameObject:
   - component: {fileID: 6473281481694695964}
   - component: {fileID: 4396830780477994204}
   - component: {fileID: 6051873670609218907}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: PlayerTest
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -157,6 +157,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e302bcc69d614bc47b0a96c373a246ac, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  wallLayer:
+    serializedVersion: 2
+    m_Bits: 0
   maxSpeed: 5
   rotationSpeed: 150
   acceleration: 5
@@ -285,7 +288,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5265432548072735848}
   - component: {fileID: 2256791385562425189}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Gun_01
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -328,6 +331,8 @@ SpriteRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -349,6 +354,7 @@ SpriteRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 1
@@ -372,7 +378,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5408675906415849641}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: FireRoot
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -405,7 +411,7 @@ GameObject:
   - component: {fileID: 262185513184201012}
   - component: {fileID: 7307873637964817744}
   - component: {fileID: 5092461905616731735}
-  m_Layer: 5
+  m_Layer: 7
   m_Name: Name
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -542,7 +548,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5935464316892293527}
   - component: {fileID: 4963857651724313249}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Hull_01
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -584,6 +590,8 @@ SpriteRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -605,6 +613,7 @@ SpriteRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
@@ -632,7 +641,7 @@ GameObject:
   - component: {fileID: 6617895562047689447}
   - component: {fileID: 3562501209164395351}
   - component: {fileID: 7815001838924802567}
-  m_Layer: 5
+  m_Layer: 7
   m_Name: WorldSpaceCanvas
   m_TagString: Untagged
   m_Icon: {fileID: 0}

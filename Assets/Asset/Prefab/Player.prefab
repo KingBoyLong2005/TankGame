@@ -17,10 +17,9 @@ GameObject:
   - component: {fileID: 1729894546218697851}
   - component: {fileID: 5969380643485708014}
   - component: {fileID: 2917835467226595075}
-  - component: {fileID: 9049847414469347116}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Player
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -407,7 +406,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ShowTopMostFoldoutHeaderGroup: 1
-  maxHealth: 100
+  maxHealth: 40
+  IsAlive:
+    m_InternalValue: 1
 --- !u!114 &2917835467226595075
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -442,36 +443,6 @@ MonoBehaviour:
       m_Action: Fire
       m_Flags: 0
     m_Flags: 0
---- !u!114 &9049847414469347116
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1236826594959323467}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 62899f850307741f2a39c98a8b639597, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.PlayerInput
-  m_Actions: {fileID: 0}
-  m_NotificationBehavior: 0
-  m_UIInputModule: {fileID: 0}
-  m_DeviceLostEvent:
-    m_PersistentCalls:
-      m_Calls: []
-  m_DeviceRegainedEvent:
-    m_PersistentCalls:
-      m_Calls: []
-  m_ControlsChangedEvent:
-    m_PersistentCalls:
-      m_Calls: []
-  m_ActionEvents: []
-  m_NeverAutoSwitchControlSchemes: 0
-  m_DefaultControlScheme: 
-  m_DefaultActionMap: 
-  m_SplitScreenIndex: -1
-  m_Camera: {fileID: 0}
 --- !u!1 &2656701454210693496
 GameObject:
   m_ObjectHideFlags: 0
@@ -483,7 +454,7 @@ GameObject:
   - component: {fileID: 5265432548072735848}
   - component: {fileID: 2256791385562425189}
   - component: {fileID: 3867751924391648987}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Gun_01
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -619,7 +590,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5408675906415849641}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: FireRoot
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -652,7 +623,7 @@ GameObject:
   - component: {fileID: 262185513184201012}
   - component: {fileID: 7307873637964817744}
   - component: {fileID: 5092461905616731735}
-  m_Layer: 5
+  m_Layer: 7
   m_Name: Name
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -789,7 +760,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5935464316892293527}
   - component: {fileID: 4963857651724313249}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Hull_01
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -882,7 +853,7 @@ GameObject:
   - component: {fileID: 6617895562047689447}
   - component: {fileID: 3562501209164395351}
   - component: {fileID: 7815001838924802567}
-  m_Layer: 5
+  m_Layer: 7
   m_Name: WorldSpaceCanvas
   m_TagString: Untagged
   m_Icon: {fileID: 0}

@@ -5,6 +5,7 @@ TagManager:
   serializedVersion: 3
   tags:
   - CameraAndFollowCamera
+  - Bot
   layers:
   - Default
   - TransparentFX
@@ -12,8 +13,8 @@ TagManager:
   - Wall
   - Water
   - UI
-  - 
-  - 
+  - Bot
+  - Player
   - 
   - 
   - 
