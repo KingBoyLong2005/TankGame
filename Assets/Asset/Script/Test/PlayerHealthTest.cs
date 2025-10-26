@@ -3,7 +3,7 @@ using UnityEngine;
 public class PlayerHealthTest : MonoBehaviour
 {
     [Header("Health Settings")]
-    [SerializeField] private int maxHealth = 100;
+    [SerializeField] private int maxHealth = 50;
     private int currentHealth;
 
     private void Start()

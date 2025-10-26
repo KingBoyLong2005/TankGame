@@ -49,6 +49,8 @@ public class PlayerController : MonoBehaviour
         moveAction.Disable();
         mousePositionAction.Disable();
         isInputEnabled = false;
+
+        
     }
 
     private void Start()
@@ -63,11 +65,10 @@ public class PlayerController : MonoBehaviour
         rb.freezeRotation = false;
         col = GetComponent<Collider2D>();
     }
-
     private void Update()
     {
         // Chỉ xử lý input nếu được phép
-        if (!isInputEnabled || playerSetup == null || !playerSetup.IsOwner) return;
+        if (playerSetup == null || turretTransform == null || mainCamera == null || moveAction == null || mousePositionAction == null) return;
 
         // Đọc đầu vào di chuyển
         moveInput = moveAction.ReadValue<Vector2>();

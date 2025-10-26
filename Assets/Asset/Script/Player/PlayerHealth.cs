@@ -6,7 +6,7 @@ public class PlayerHealth : NetworkBehaviour
     [Header("Health Settings")]
     [SerializeField] private int maxHealth = 100; // Máu tối đa
     // [SerializeField] private GameObject deathEffect; // Hiệu ứng chết (nếu có, prefab particle)
-
+    public NetworkVariable<bool> IsAlive = new NetworkVariable<bool>(true);
     private NetworkVariable<int> currentHealth = new NetworkVariable<int>(100, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
     public override void OnNetworkSpawn()
@@ -48,16 +48,51 @@ public class PlayerHealth : NetworkBehaviour
 
     private void Die()
     {
-        // Xử lý chết: Hủy player hoặc respawn
-        // if (deathEffect != null)
-        // {
-        //     Instantiate(deathEffect, transform.position, Quaternion.identity);
-        // }
-        NetworkObject.Despawn(); // Hủy trên mạng
+        if (!IsServer) return;
+
+        IsAlive.Value = false;
+
+        // Ẩn tạm player
+        DisablePlayer();
+
+        GameManager.Instance.CheckAlivePlayers();
+    }
+    private void DisablePlayer()
+    {
+        // Tắt collider và renderer (không despawn)
+        var renderers = GetComponentsInChildren<SpriteRenderer>();
+        foreach (var r in renderers) r.enabled = false;
+
+        var colliders = GetComponentsInChildren<Collider2D>();
+        foreach (var c in colliders) c.enabled = false;
+
+        var controller = GetComponent<PlayerController>();
+        if (controller != null) controller.enabled = false;
+    }
+
+    public void Respawn(Vector3 position)
+    {
+        // Reset các thành phần
+        transform.position = position;
+        currentHealth.Value = maxHealth;
+        IsAlive.Value = true;
+
+        var renderers = GetComponentsInChildren<SpriteRenderer>();
+        foreach (var r in renderers) r.enabled = true;
+
+        var colliders = GetComponentsInChildren<Collider2D>();
+        foreach (var c in colliders) c.enabled = true;
+
+        var controller = GetComponent<PlayerController>();
+        if (controller != null) controller.enabled = true;
     }
 
     public int GetCurrentHealth()
     {
         return currentHealth.Value;
+    }
+    public void ResetHealth()
+    {
+        currentHealth.Value = 50;
     }
 }
