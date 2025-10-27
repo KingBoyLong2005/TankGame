@@ -6,10 +6,24 @@ public class GameManager : NetworkBehaviour
 {
     public static GameManager Instance;
 
+    [Header("Bot Settings")]
+    [SerializeField] private GameObject botPrefab; // ✅ Gán trong Inspector thay vì dùng Resources
+
     private NetworkVariable<int> continueVotes = new(0);
     private NetworkVariable<int> exitVotes = new(0);
 
     private void Awake() => Instance = this;
+
+    public override void OnNetworkSpawn()
+    {
+        base.OnNetworkSpawn();
+
+        // ✅ Spawn bot ngay khi GameManager được spawn (chỉ host)
+        if (IsServer)
+        {
+            SpawnLobbyBots();
+        }
+    }
 
     public void CheckAlivePlayers()
     {
@@ -21,7 +35,6 @@ public class GameManager : NetworkBehaviour
 
         if (alivePlayers.Count == 1)
         {
-            // Khi chỉ còn một người sống → mở menu cho tất cả client
             ShowContinueMenuClientRpc();
         }
     }
@@ -44,12 +57,10 @@ public class GameManager : NetworkBehaviour
 
         int totalPlayers = NetworkManager.Singleton.ConnectedClientsList.Count;
 
-        // Nếu có người chọn "Exit" → tất cả về Lobby
         if (exitVotes.Value > 0)
         {
             ReturnToLobby();
         }
-        // Nếu tất cả đều chọn "Continue" → Respawn lại
         else if (continueVotes.Value >= totalPlayers)
         {
             RespawnAllPlayers();
@@ -65,17 +76,15 @@ public class GameManager : NetworkBehaviour
         {
             var playerObj = client.PlayerObject;
 
-            // Nếu player đã bị despawn (bị xoá mất NetworkObject)
             if (playerObj == null)
             {
-                // Spawn lại prefab player mới cho client này
                 GameObject playerPrefab = NetworkManager.Singleton.NetworkConfig.PlayerPrefab;
                 GameObject newPlayer = Instantiate(playerPrefab);
 
                 var netObj = newPlayer.GetComponent<NetworkObject>();
                 netObj.SpawnAsPlayerObject(client.ClientId);
 
-                playerObj = netObj; // Cập nhật player object để Respawn
+                playerObj = netObj;
             }
 
             if (playerObj != null)
@@ -88,7 +97,6 @@ public class GameManager : NetworkBehaviour
 
         HideContinueMenuClientRpc();
     }
-
 
     [ClientRpc]
     private void HideContinueMenuClientRpc()
@@ -104,29 +112,74 @@ public class GameManager : NetworkBehaviour
         NetworkManager.Singleton.SceneManager.LoadScene("LobbyScene",
             UnityEngine.SceneManagement.LoadSceneMode.Single);
     }
+
     public void SpawnLobbyBots()
     {
         if (!IsServer) return;
-        var lobby = LobbyManager.Instance.joinLobby;
-        if (lobby == null || lobby.Data == null || !lobby.Data.ContainsKey("Bots")) return;
+
+        var lobby = LobbyManager.Instance?.joinLobby;
+        if (lobby == null)
+        {
+            Debug.LogWarning("⚠️ Không tìm thấy lobby data");
+            return;
+        }
+
+        if (lobby.Data == null || !lobby.Data.ContainsKey("Bots"))
+        {
+            Debug.Log("✅ Không có bot nào để spawn");
+            return;
+        }
 
         string botData = lobby.Data["Bots"].Value;
-        string[] botNames = botData.Split(';');
-
-        foreach (string botName in botNames)
+        if (string.IsNullOrEmpty(botData))
         {
-            if (string.IsNullOrEmpty(botName)) continue;
+            Debug.Log("✅ Bot data trống");
+            return;
+        }
 
-            // Chọn skin ngẫu nhiên
-            int skin = Random.Range(0, 3);
+        string[] botEntries = botData.Split(';');
 
-            // Spawn bot prefab
-            GameObject botPrefab = Resources.Load<GameObject>("Bot"); // đặt prefab trong Resources/Bot.prefab
-            GameObject botObj = Instantiate(botPrefab, SpawnPointManager.Instance.GetNextSpawnPosition(), Quaternion.identity);
+        foreach (string botEntry in botEntries)
+        {
+            if (string.IsNullOrEmpty(botEntry)) continue;
+
+            // Parse "BotName:SkinIndex"
+            string[] parts = botEntry.Split(':');
+            string botName = parts[0];
+            int skin = parts.Length > 1 && int.TryParse(parts[1], out int s) ? s : Random.Range(0, 3);
+
+            // ✅ Kiểm tra botPrefab
+            if (botPrefab == null)
+            {
+                Debug.LogError("❌ Bot Prefab chưa được gán trong GameManager!");
+                return;
+            }
+
+            // Spawn bot
+            Vector3 spawnPos = SpawnPointManager.Instance.GetNextSpawnPosition();
+            GameObject botObj = Instantiate(botPrefab, spawnPos, Quaternion.identity);
+            
             var netObj = botObj.GetComponent<NetworkObject>();
+            if (netObj == null)
+            {
+                Debug.LogError("❌ Bot prefab không có NetworkObject component!");
+                Destroy(botObj);
+                continue;
+            }
+
             netObj.Spawn();
 
-            botObj.GetComponent<BotSetup>().InitBotServerRpc(botName, skin);
+            // Khởi tạo bot
+            var botSetup = botObj.GetComponent<BotSetup>();
+            if (botSetup != null)
+            {
+                botSetup.InitBotServerRpc(botName, skin);
+                Debug.Log($"✅ Spawned bot: {botName} with skin {skin}");
+            }
+            else
+            {
+                Debug.LogWarning($"⚠️ Bot prefab không có BotSetup component!");
+            }
         }
     }
 }
