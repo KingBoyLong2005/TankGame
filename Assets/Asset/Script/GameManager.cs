@@ -1,16 +1,20 @@
 using Unity.Netcode;
 using System.Linq;
 using UnityEngine;
+using System.Collections.Generic;
 
 public class GameManager : NetworkBehaviour
 {
     public static GameManager Instance;
 
     [Header("Bot Settings")]
-    [SerializeField] private GameObject botPrefab; // ✅ Gán trong Inspector thay vì dùng Resources
+    [SerializeField] private GameObject botPrefab;
 
     private NetworkVariable<int> continueVotes = new(0);
     private NetworkVariable<int> exitVotes = new(0);
+
+    // ✅ Danh sách để track các spawn point đã dùng
+    private HashSet<int> usedSpawnIndices = new HashSet<int>();
 
     private void Awake() => Instance = this;
 
@@ -18,9 +22,12 @@ public class GameManager : NetworkBehaviour
     {
         base.OnNetworkSpawn();
 
-        // ✅ Spawn bot ngay khi GameManager được spawn (chỉ host)
         if (IsServer)
         {
+            // ✅ Reset spawn points trước khi spawn
+            SpawnPointManager.Instance.ResetSpawnCycle();
+            usedSpawnIndices.Clear();
+            
             SpawnLobbyBots();
         }
     }
@@ -72,6 +79,10 @@ public class GameManager : NetworkBehaviour
         continueVotes.Value = 0;
         exitVotes.Value = 0;
 
+        // ✅ Reset spawn tracking
+        usedSpawnIndices.Clear();
+        SpawnPointManager.Instance.ResetSpawnCycle();
+
         foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
         {
             var playerObj = client.PlayerObject;
@@ -90,7 +101,7 @@ public class GameManager : NetworkBehaviour
             if (playerObj != null)
             {
                 var health = playerObj.GetComponent<PlayerHealth>();
-                Vector3 spawnPos = SpawnPointManager.Instance.GetNextSpawnPosition();
+                Vector3 spawnPos = GetUniqueSpawnPosition();
                 health.Respawn(spawnPos);
             }
         }
@@ -143,20 +154,18 @@ public class GameManager : NetworkBehaviour
         {
             if (string.IsNullOrEmpty(botEntry)) continue;
 
-            // Parse "BotName:SkinIndex"
             string[] parts = botEntry.Split(':');
             string botName = parts[0];
             int skin = parts.Length > 1 && int.TryParse(parts[1], out int s) ? s : Random.Range(0, 3);
 
-            // ✅ Kiểm tra botPrefab
             if (botPrefab == null)
             {
                 Debug.LogError("❌ Bot Prefab chưa được gán trong GameManager!");
                 return;
             }
 
-            // Spawn bot
-            Vector3 spawnPos = SpawnPointManager.Instance.GetNextSpawnPosition();
+            // ✅ Lấy vị trí spawn không trùng
+            Vector3 spawnPos = GetUniqueSpawnPosition();
             GameObject botObj = Instantiate(botPrefab, spawnPos, Quaternion.identity);
             
             var netObj = botObj.GetComponent<NetworkObject>();
@@ -169,17 +178,59 @@ public class GameManager : NetworkBehaviour
 
             netObj.Spawn();
 
-            // Khởi tạo bot
+            // ✅ Khởi tạo bot với skin đúng
             var botSetup = botObj.GetComponent<BotSetup>();
             if (botSetup != null)
             {
-                botSetup.InitBotServerRpc(botName, skin);
-                Debug.Log($"✅ Spawned bot: {botName} with skin {skin}");
+                // Gọi trực tiếp thay vì qua ServerRpc vì đã ở trên server
+                botSetup.InitBot(botName, skin);
+                Debug.Log($"✅ Spawned bot: {botName} at {spawnPos} with skin {skin}");
             }
             else
             {
                 Debug.LogWarning($"⚠️ Bot prefab không có BotSetup component!");
             }
         }
+    }
+
+    // ✅ Hàm mới để lấy spawn position không trùng
+    private Vector3 GetUniqueSpawnPosition()
+    {
+        int totalSpawnPoints = SpawnPointManager.Instance.GetTotalSpawnPoints();
+        
+        // Nếu đã dùng hết tất cả spawn point thì reset
+        if (usedSpawnIndices.Count >= totalSpawnPoints)
+        {
+            usedSpawnIndices.Clear();
+        }
+
+        int spawnIndex;
+        int attempts = 0;
+        int maxAttempts = totalSpawnPoints * 2;
+
+        // Tìm spawn point chưa dùng
+        do
+        {
+            spawnIndex = SpawnPointManager.Instance.GetCurrentSpawnIndex();
+            attempts++;
+
+            if (attempts > maxAttempts)
+            {
+                Debug.LogWarning("⚠️ Không tìm được spawn point trống, dùng vị trí ngẫu nhiên");
+                break;
+            }
+
+            if (!usedSpawnIndices.Contains(spawnIndex))
+                break;
+
+            SpawnPointManager.Instance.AdvanceSpawnIndex();
+        }
+        while (true);
+
+        usedSpawnIndices.Add(spawnIndex);
+        Vector3 position = SpawnPointManager.Instance.GetSpawnPosition(spawnIndex);
+        SpawnPointManager.Instance.AdvanceSpawnIndex();
+
+        return position;
     }
 }

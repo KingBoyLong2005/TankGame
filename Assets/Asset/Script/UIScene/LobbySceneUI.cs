@@ -14,13 +14,15 @@ public class LobbySceneUI : MonoBehaviour
     [SerializeField] private Button addBotButton;
     [SerializeField] private Button Ready;
     [SerializeField] private Button CancelReady;
+    // [SerializeField] private Button RefreshButton;
     [SerializeField] private TMP_Text CodeLobby;
 
     private List<GameObject> slots = new List<GameObject>();
     private Dictionary<string, int> botSkins = new();
     
-    // ✅ Để kiểm tra xem đã có bao nhiêu người trong lobby
     private string lastLobbyState = "";
+    private float refreshTimer = 0f;
+    private const float REFRESH_INTERVAL = 0.5f; // Refresh mỗi 0.5s
 
     private void Start()
     {
@@ -35,6 +37,7 @@ public class LobbySceneUI : MonoBehaviour
         });
 
         addBotButton.onClick.AddListener(AddBot);
+        // RefreshButton.onClick.AddListener(() => { RefreshLobbyFromLobbyData(); });
         CodeLobby.text = LobbyManager.Instance.GetCodeLobby();
         
         if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsClient)
@@ -48,13 +51,13 @@ public class LobbySceneUI : MonoBehaviour
             }
         }
 
-        // ✅ Đăng ký lắng nghe sự kiện cập nhật lobby
+        // Đăng ký lắng nghe sự kiện cập nhật lobby
         if (LobbyManager.Instance != null)
         {
             LobbyManager.Instance.OnLobbyUpdated += RefreshLobbyFromLobbyData;
         }
 
-        // Refresh UI lần đầu sau 0.5s để đảm bảo lobby data đã được sync
+        // Refresh UI lần đầu
         Invoke(nameof(RefreshLobbyFromLobbyData), 0.5f);
     }
 
@@ -68,9 +71,16 @@ public class LobbySceneUI : MonoBehaviour
     {
         if (LobbyManager.Instance.hostLobby == null) return;
         LobbyGameFlow.Instance.TryCheckAllReady();
+
+        // ✅ Thêm auto-refresh để đảm bảo UI luôn sync
+        refreshTimer += Time.deltaTime;
+        if (refreshTimer >= REFRESH_INTERVAL)
+        {
+            refreshTimer = 0f;
+            RefreshLobbyFromLobbyData();
+        }
     }
 
-    // ✅ Phương thức refresh UI dựa trên dữ liệu Lobby Service
     private void RefreshLobbyFromLobbyData()
     {
         if (LobbyManager.Instance == null || LobbyManager.Instance.joinLobby == null)
@@ -81,8 +91,13 @@ public class LobbySceneUI : MonoBehaviour
 
         var lobby = LobbyManager.Instance.joinLobby;
 
-        // ✅ Tạo hash để kiểm tra thay đổi
+        // ✅ Tạo hash để kiểm tra thay đổi (bao gồm cả số lượng player)
         string currentState = $"Players:{lobby.Players.Count}";
+        foreach (var p in lobby.Players)
+        {
+            currentState += $"|{p.Id}";
+        }
+        
         if (lobby.Data != null && lobby.Data.ContainsKey("Bots"))
             currentState += $";Bots:{lobby.Data["Bots"].Value}";
 
@@ -110,12 +125,10 @@ public class LobbySceneUI : MonoBehaviour
                 {
                     if (string.IsNullOrEmpty(botEntry)) continue;
                     
-                    // Parse "BotName:SkinIndex"
                     string[] parts = botEntry.Split(':');
                     string botName = parts[0];
                     int skin = parts.Length > 1 && int.TryParse(parts[1], out int s) ? s : Random.Range(0, 3);
 
-                    // Lưu skin vào dictionary
                     botSkins[botName] = skin;
 
                     var botSlot = Instantiate(playerSlotPrefab, playerListContainer);
@@ -146,7 +159,6 @@ public class LobbySceneUI : MonoBehaviour
         Debug.Log($"✅ Refreshed Lobby UI: {lobby.Players.Count} players + {botSkins.Count} bots = {slots.Count} total slots");
     }
 
-    // Giữ lại để tương thích với LobbyPlayersManager
     public void RefreshLobby(List<ulong> playerIds)
     {
         RefreshLobbyFromLobbyData();
@@ -173,7 +185,6 @@ public class LobbySceneUI : MonoBehaviour
         if (lobby.Data != null && lobby.Data.ContainsKey("Bots"))
             oldValue = lobby.Data["Bots"].Value;
 
-        // Ghép thêm bot mới (kèm skin ngẫu nhiên)
         int randomSkin = Random.Range(0, 3);
         string botEntry = $"{newBotName}:{randomSkin}";
         
@@ -193,15 +204,14 @@ public class LobbySceneUI : MonoBehaviour
 
             Debug.Log($"✅ Bot '{newBotName}' (Skin {randomSkin}) added to lobby!");
             
-            // ✅ Cập nhật cả joinLobby và hostLobby
             LobbyManager.Instance.joinLobby = lobby;
             if (LobbyManager.Instance.hostLobby != null)
                 LobbyManager.Instance.hostLobby = lobby;
 
-            // Lưu skin vào dictionary
             botSkins[newBotName] = randomSkin;
 
-            // Force refresh UI ngay lập tức
+            // ✅ Force refresh ngay lập tức
+            lastLobbyState = ""; // Reset để force update
             RefreshLobbyFromLobbyData();
         }
         catch (System.Exception e)

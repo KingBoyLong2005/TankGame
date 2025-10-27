@@ -68,7 +68,9 @@ public class PlayerController : MonoBehaviour
     private void Update()
     {
         // Chỉ xử lý input nếu được phép
-        if (playerSetup == null || turretTransform == null || mainCamera == null || moveAction == null || mousePositionAction == null) return;
+        // if (!isInputEnabled || playerSetup == null || !playerSetup.IsOwner)
+        if (!isInputEnabled || playerSetup == null)
+        return;
 
         // Đọc đầu vào di chuyển
         moveInput = moveAction.ReadValue<Vector2>();
