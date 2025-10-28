@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using Unity.Cinemachine;
+using System.Collections;
 
 public class PlayerController : MonoBehaviour
 {
@@ -49,16 +50,17 @@ public class PlayerController : MonoBehaviour
         moveAction.Disable();
         mousePositionAction.Disable();
         isInputEnabled = false;
-
-        
     }
 
     private void Start()
     {   
+        StartCoroutine(WaitForCamera());
         playerSetup = GetComponent<PlayerSetup>();
-        if (playerSetup != null && playerSetup.IsOwner) 
+        if (playerSetup != null && playerSetup.IsOwner)
         {
             mainCamera = playerSetup.LocalCamera;
+            if (mainCamera == null)
+                mainCamera = Camera.main; // fallback
         }
         rb = GetComponent<Rigidbody2D>();
         rb.gravityScale = 0f;
@@ -68,22 +70,34 @@ public class PlayerController : MonoBehaviour
     private void Update()
     {
         // Chỉ xử lý input nếu được phép
-        // if (!isInputEnabled || playerSetup == null || !playerSetup.IsOwner)
-        if (!isInputEnabled || playerSetup == null)
-        return;
+        if (!isInputEnabled || playerSetup == null || !playerSetup.IsOwner)
+            return;
 
         // Đọc đầu vào di chuyển
         moveInput = moveAction.ReadValue<Vector2>();
 
-        // Xoay turret theo chuột
-        if (turretTransform != null && mainCamera != null)
+        // ✅ Xoay turret an toàn
+        if (turretTransform != null )
         {
             Vector2 mousePos = mousePositionAction.ReadValue<Vector2>();
-            Vector3 worldMousePos = mainCamera.ScreenToWorldPoint(mousePos);
-            Vector2 direction = (Vector2)(worldMousePos - turretTransform.transform.position);
-            float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg + turretRotationOffset;
-            turretTransform.transform.rotation = Quaternion.Euler(0f, 0f, angle);
+            Vector3 mousePos3D = new Vector3(mousePos.x, mousePos.y, mainCamera.nearClipPlane);
+            Vector3 worldMousePos = mainCamera.ScreenToWorldPoint(mousePos3D);
+            worldMousePos.z = 0f;
+
+            Vector2 dir = (Vector2)(worldMousePos - turretTransform.transform.position);
+            if (dir.sqrMagnitude > 0.001f)
+            {
+                float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg + turretRotationOffset;
+                turretTransform.transform.rotation = Quaternion.Euler(0f, 0f, angle);
+            }
+
+            // Debug
+            Debug.DrawLine(turretTransform.transform.position, worldMousePos, Color.yellow);
         }
+        // else if (mainCamera == null)
+        // {
+        //     Debug.LogWarning($"[{name}] mainCamera chưa được gán (turret không xoay).");
+        // }
     }
 
     private void FixedUpdate()
@@ -172,4 +186,24 @@ public class PlayerController : MonoBehaviour
             }
         }
     }
+    private IEnumerator WaitForCamera()
+    {
+        int safety = 0;
+        while (mainCamera == null && safety < 120) // tối đa chờ 1 giây
+        {
+            if (playerSetup != null && playerSetup.IsOwner)
+            {
+                mainCamera = playerSetup.LocalCamera;
+                if (mainCamera == null)
+                    mainCamera = Camera.main;
+            }
+            safety++;
+            yield return null; // chờ 1 frame
+        }
+
+        if (mainCamera == null)
+            Debug.LogError($"[{name}] ❌ Không thể tìm thấy camera cho player owner sau 1 giây!");
+        else
+            Debug.Log($"[{name}] ✅ Camera đã gán thành công: {mainCamera.name}");
+}
 }

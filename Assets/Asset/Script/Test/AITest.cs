@@ -1,7 +1,8 @@
 using UnityEngine;
 using UnityEngine.AI;
+using Unity.Netcode;
 
-public class AITest : MonoBehaviour
+public class AITest : NetworkBehaviour
 {
     [Header("NavMesh")]
     private NavMeshAgent agent;
@@ -12,26 +13,24 @@ public class AITest : MonoBehaviour
     public float keepDistance = 3f;
     public float circleSpeed = 2f;
 
-    [Header("Combat")]
-    public Transform firePoint;
-    public Transform turretTransform; // thêm: nòng pháo riêng
-    public GameObject bulletPrefab;
-    public LayerMask obstacleMask;
-    public float bulletSpeed = 10f;
-    public float fireCooldown = 1f;
-    private float lastShootTime;
-
     [Header("Tank Movement")]
     public float rotationSpeed = 200f;
     public float acceleration = 5f;
     public float deceleration = 6f;
     public float maxSpeed = 3f;
-    public float bodyRotationOffset = 0f;
-    public float turretRotationOffset = 0f;
+    public float bodyRotationOffset = -90f;
+    public float turretRotationOffset = -90f;
+
     private Rigidbody2D rb;
     private float currentSpeed;
-
     private Transform target;
+
+    [Header("Turret")]
+    public Transform turretTransform;
+    public LayerMask obstacleMask;
+
+    // --- Thêm ---
+    private AIShooting aiShooting;
 
     private void Start()
     {
@@ -39,10 +38,15 @@ public class AITest : MonoBehaviour
         agent = GetComponent<NavMeshAgent>();
         agent.updateUpAxis = false;
         agent.updateRotation = false;
+
+        aiShooting = GetComponent<AIShooting>();
     }
 
     private void Update()
     {
+        // Bot chỉ chạy logic trên Server (Netcode best practice)
+        if (!IsServer) return;
+
         // --- Tìm mục tiêu ---
         if (target == null || Vector2.Distance(transform.position, target.position) > detectRange)
             target = FindClosestTarget();
@@ -54,39 +58,41 @@ public class AITest : MonoBehaviour
         }
 
         float dist = Vector2.Distance(transform.position, target.position);
-
-        // --- Xác định điểm đến ---
         Vector2 movePos;
+
         if (dist > attackRange)
         {
-            // Đi đến gần mục tiêu
+            // Đi gần hơn
             movePos = target.position;
         }
         else
         {
-            // Kiểm tra có tường chắn không
             bool hasLOS = HasLineOfSight(target);
 
             if (!hasLOS)
             {
-                // Không thấy target vì bị tường che → tìm chỗ ẩn nấp có thể nhìn thấy
+                // Nếu bị tường che, tìm chỗ có thể bắn
                 movePos = FindCoverPosition(target);
             }
             else
             {
-                // Có tầm nhìn → di chuyển vòng quanh và tấn công
+                // Nếu thấy target rõ → di chuyển vòng quanh và bắn
                 float angle = Time.time * circleSpeed;
                 Vector2 offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * keepDistance;
                 movePos = (Vector2)target.position + offset;
 
-                TryShoot();
+                // --- Bắn ---
+                if (aiShooting != null && turretTransform != null)
+                {
+                    Vector2 dir = (target.position - turretTransform.position).normalized;
+                    aiShooting.TryShoot(dir);
+                }
             }
         }
 
-        // --- Điều khiển thân xe dựa theo hướng di chuyển ---
         MoveTowards(movePos);
 
-        // --- Xoay turret hướng về target ---
+        // --- Xoay turret ---
         if (target != null)
             RotateTurretTowards(target.position);
     }
@@ -111,8 +117,8 @@ public class AITest : MonoBehaviour
         float accelRate = (targetSpeed > 0.1f) ? acceleration : deceleration;
         currentSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed, accelRate * Time.deltaTime);
 
-        // --- Di chuyển thực tế ---
-        Vector2 forward = transform.right; // vì xe tank quay mặt theo trục X trong top-down
+        // --- Di chuyển ---
+        Vector2 forward = transform.right;
         rb.linearVelocity = forward * currentSpeed;
     }
 
@@ -150,26 +156,6 @@ public class AITest : MonoBehaviour
         return closestTarget;
     }
 
-    private void TryShoot()
-    {
-        if (Time.time - lastShootTime < fireCooldown) return;
-
-        Vector2 dir = (target.position - firePoint.position).normalized;
-        float dist = Vector2.Distance(firePoint.position, target.position);
-
-        RaycastHit2D hit = Physics2D.Raycast(firePoint.position, dir, dist, obstacleMask);
-        if (hit.collider == null)
-        {
-            Shoot(dir);
-            lastShootTime = Time.time;
-        }
-    }
-
-    private void Shoot(Vector2 dir)
-    {
-        GameObject bullet = Instantiate(bulletPrefab, firePoint.position, Quaternion.identity);
-        bullet.GetComponent<Rigidbody2D>().linearVelocity = dir * bulletSpeed;
-    }
     private bool HasLineOfSight(Transform target)
     {
         Vector2 dir = (target.position - transform.position).normalized;
@@ -177,12 +163,12 @@ public class AITest : MonoBehaviour
         RaycastHit2D hit = Physics2D.Raycast(transform.position, dir, dist, obstacleMask);
         return hit.collider == null;
     }
+
     private Vector2 FindCoverPosition(Transform target)
     {
         Vector2 dirToTarget = (target.position - transform.position).normalized;
         Vector2 backPos = (Vector2)transform.position - dirToTarget * keepDistance;
 
-        // Dò sang 2 hướng trái-phải để tìm hướng có cover tốt
         Vector2 leftCover = backPos + Vector2.Perpendicular(dirToTarget) * 1.5f;
         Vector2 rightCover = backPos - Vector2.Perpendicular(dirToTarget) * 1.5f;
 

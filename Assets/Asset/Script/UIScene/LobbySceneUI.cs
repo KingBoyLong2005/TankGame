@@ -6,6 +6,7 @@ using TMPro;
 using Unity.Services.Lobbies;
 using System.Threading.Tasks;
 using Unity.Netcode;
+using Unity.Services.Authentication;
 
 public class LobbySceneUI : MonoBehaviour
 {
@@ -40,16 +41,28 @@ public class LobbySceneUI : MonoBehaviour
         // RefreshButton.onClick.AddListener(() => { RefreshLobbyFromLobbyData(); });
         CodeLobby.text = LobbyManager.Instance.GetCodeLobby();
         
-        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsClient)
+        // if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsClient)
+        // {
+        //     if (LobbyPlayersManager.Instance != null)
+        //     {
+        //         LobbyPlayersManager.Instance.RegisterMapping(
+        //             NetworkManager.Singleton.LocalClientId,
+        //             LobbyManager.Instance.GetPlayerId()
+        //         );
+        //     }
+        // }
+        if (NetworkManager.Singleton.IsServer)
         {
-            if (LobbyPlayersManager.Instance != null)
+            if (NetworkManager.Singleton != null)
             {
-                LobbyPlayersManager.Instance.RegisterMapping(
-                    NetworkManager.Singleton.LocalClientId,
-                    LobbyManager.Instance.GetPlayerId()
-                );
+                ulong netId = NetworkManager.Singleton.LocalClientId;
+                string lobbyId = LobbyManager.Instance.GetPlayerId();
+
+                // Gửi mapping lên server để host biết
+                LobbyPlayersManager.Instance.RegisterMappingServerRpc(netId, lobbyId);
             }
         }
+
 
         // Đăng ký lắng nghe sự kiện cập nhật lobby
         if (LobbyManager.Instance != null)
@@ -187,7 +200,7 @@ public class LobbySceneUI : MonoBehaviour
 
         int randomSkin = Random.Range(0, 3);
         string botEntry = $"{newBotName}:{randomSkin}";
-        
+
         string newValue = string.IsNullOrEmpty(oldValue)
             ? botEntry
             : $"{oldValue};{botEntry}";
@@ -203,7 +216,7 @@ public class LobbySceneUI : MonoBehaviour
             });
 
             Debug.Log($"✅ Bot '{newBotName}' (Skin {randomSkin}) added to lobby!");
-            
+
             LobbyManager.Instance.joinLobby = lobby;
             if (LobbyManager.Instance.hostLobby != null)
                 LobbyManager.Instance.hostLobby = lobby;
@@ -219,4 +232,45 @@ public class LobbySceneUI : MonoBehaviour
             Debug.LogError("❌ Không thể thêm bot: " + e.Message);
         }
     }
+    public void RefreshLobbyFromNetcode(ulong[] playerIds)
+    {
+        // Xóa UI cũ
+        foreach (Transform child in playerListContainer)
+            Destroy(child.gameObject);
+
+        slots.Clear();
+
+        var lobby = LobbyManager.Instance.joinLobby;
+        if (lobby == null)
+        {
+            Debug.LogWarning("⚠️ Không có lobby dữ liệu để hiển thị player.");
+            return;
+        }
+
+        // Hiển thị người chơi thật từ Netcode
+        string name = "Unknown";
+        foreach (ulong id in playerIds)
+        {
+            string lobbyId = null;
+            if (LobbyPlayersManager.Instance.networkToLobbyId.TryGetValue(id, out string mapped))
+                lobbyId = mapped;
+
+            var playerData = lobby.Players.Find(p => p.Id == lobbyId);
+            if (playerData != null && playerData.Data != null && playerData.Data.ContainsKey("PlayerName"))
+                name = playerData.Data["PlayerName"].Value;
+
+            int skin = 0;
+            if (playerData?.Data != null && playerData.Data.ContainsKey("Skin"))
+                int.TryParse(playerData.Data["Skin"].Value, out skin);
+
+            bool isLocal = (lobbyId == LobbyManager.Instance.GetPlayerId());
+
+            var playerSlot = Instantiate(playerSlotPrefab, playerListContainer);
+            playerSlot.GetComponent<PlayerSlotUI>().Setup(name, isLocal, skin);
+            slots.Add(playerSlot);
+        }
+
+        Debug.Log($"✅ [Netcode Refresh] UI hiển thị {playerIds.Length} người chơi.");
+    }
+
 }

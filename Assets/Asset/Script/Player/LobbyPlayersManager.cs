@@ -7,9 +7,7 @@ public class LobbyPlayersManager : NetworkBehaviour
 {
     public static LobbyPlayersManager Instance;
 
-    private List<ulong> playerIds = new List<ulong>();
-
-    // Ánh xạ giữa Network Client ID và Lobby Player ID
+    private readonly List<ulong> playerIds = new();
     public Dictionary<ulong, string> networkToLobbyId = new();
 
     private void Awake()
@@ -28,47 +26,52 @@ public class LobbyPlayersManager : NetworkBehaviour
 
     private void OnClientJoined(ulong clientId)
     {
-        // Server thêm player mới vào danh sách
-        AddPlayerServerRpc(clientId);
+        if (!IsServer) return;
+        if (!playerIds.Contains(clientId))
+            playerIds.Add(clientId);
 
-        // Server không tự biết lobbyId của client, client sẽ tự báo lên sau
         Debug.Log($"[Server] Client joined: {clientId}");
+        UpdateAllClientsUI();
     }
 
     private void OnClientLeft(ulong clientId)
     {
+        if (!IsServer) return;
+
         playerIds.Remove(clientId);
         networkToLobbyId.Remove(clientId);
-        UpdatePlayerListClientRpc(playerIds.ToArray());
+        UpdateAllClientsUI();
     }
 
-    [ServerRpc(RequireOwnership = false)]
-    public void AddPlayerServerRpc(ulong clientId)
+    private void UpdateAllClientsUI()
     {
-        if (!playerIds.Contains(clientId))
-            playerIds.Add(clientId);
-
         UpdatePlayerListClientRpc(playerIds.ToArray());
     }
 
     [ClientRpc]
     private void UpdatePlayerListClientRpc(ulong[] ids)
     {
-        playerIds = ids.ToList();
-        Debug.Log($"[Client] Refresh UI with {playerIds.Count} players");
+        Debug.Log($"[Client] Refreshing UI: {ids.Length} players connected.");
 
         var ui = FindFirstObjectByType<LobbySceneUI>();
         if (ui != null)
-            ui.RefreshLobby(playerIds);
+            ui.RefreshLobbyFromNetcode(ids);
     }
 
-    // Client gọi khi vừa join xong để đăng ký mapping
-    public void RegisterMapping(ulong networkId, string lobbyId)
+    [ServerRpc(RequireOwnership = false)]
+    public void RegisterMappingServerRpc(ulong networkId, string lobbyId)
     {
         if (!networkToLobbyId.ContainsKey(networkId))
         {
             networkToLobbyId[networkId] = lobbyId;
-            Debug.Log($"Mapping added: NetID {networkId} → LobbyID {lobbyId}");
+            Debug.Log($"[Server] Mapping added: NetID {networkId} → LobbyID {lobbyId}");
         }
+
+        // Đồng bộ lại danh sách để UI hiển thị đúng tên
+        UpdatePlayerListClientRpc(playerIds.ToArray());
+    }
+    public void RefreshUIForServer()
+    {
+        UpdatePlayerListClientRpc(playerIds.ToArray());
     }
 }

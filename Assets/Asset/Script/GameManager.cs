@@ -13,8 +13,7 @@ public class GameManager : NetworkBehaviour
     private NetworkVariable<int> continueVotes = new(0);
     private NetworkVariable<int> exitVotes = new(0);
 
-    // ✅ Danh sách để track các spawn point đã dùng
-    private HashSet<int> usedSpawnIndices = new HashSet<int>();
+    private HashSet<int> usedSpawnIndices = new();
 
     private void Awake() => Instance = this;
 
@@ -24,15 +23,36 @@ public class GameManager : NetworkBehaviour
 
         if (IsServer)
         {
-            // ✅ Reset spawn points trước khi spawn
             SpawnPointManager.Instance.ResetSpawnCycle();
             usedSpawnIndices.Clear();
-            
+
+            RegisterUsedSpawnPositionsByPlayers();
             SpawnLobbyBots();
         }
     }
 
-    public void CheckAlivePlayers()
+    // ✅ Ghi nhận các spawn point đã có người chơi
+    private void RegisterUsedSpawnPositionsByPlayers()
+    {
+        var players = FindObjectsByType<PlayerHealth>(FindObjectsSortMode.None);
+        for (int i = 0; i < SpawnPointManager.Instance.GetTotalSpawnPoints(); i++)
+        {
+            Vector3 spawnPos = SpawnPointManager.Instance.GetSpawnPosition(i);
+
+            foreach (var player in players)
+            {
+                float dist = Vector3.Distance(player.transform.position, spawnPos);
+                if (dist < 1.5f)
+                {
+                    usedSpawnIndices.Add(i);
+                    break;
+                }
+            }
+        }
+    }
+
+    // ✅ Kiểm tra còn ai sống
+    public void CheckAliveEntities()
     {
         if (!IsServer) return;
 
@@ -40,14 +60,41 @@ public class GameManager : NetworkBehaviour
             .Where(p => p.IsAlive.Value)
             .ToList();
 
-        if (alivePlayers.Count == 1)
+        var aliveBots = FindObjectsByType<BotHealth>(FindObjectsSortMode.None)
+            .Where(b => b.IsAlive.Value)
+            .ToList();
+
+        int totalAlive = alivePlayers.Count + aliveBots.Count;
+
+        if (totalAlive <= 0)
         {
+            Debug.Log("💀 Tất cả đều chết → reset round");
+            RestartRound();
+            return;
+        }
+
+        // Nếu chỉ còn 1 phe sống sót
+        bool playersAlive = alivePlayers.Count > 0;
+        bool botsAlive = aliveBots.Count > 0;
+
+        if (playersAlive && !botsAlive)
+        {
+            Debug.Log("✅ Người chơi thắng → hiển thị menu tiếp tục");
             ShowContinueMenuClientRpc();
+        }
+        else if (!playersAlive && botsAlive)
+        {
+            Debug.Log("💀 Bot thắng → reset round");
+            RestartRound();
+        }
+        else
+        {
+            // Cả hai phe còn → tiếp tục chơi
         }
     }
 
     [ClientRpc]
-    void ShowContinueMenuClientRpc()
+    private void ShowContinueMenuClientRpc()
     {
         UIManager.Instance.ShowContinueMenu();
     }
@@ -70,40 +117,38 @@ public class GameManager : NetworkBehaviour
         }
         else if (continueVotes.Value >= totalPlayers)
         {
-            RespawnAllPlayers();
+            RespawnAllEntities();
         }
     }
 
-    private void RespawnAllPlayers()
+    // ✅ Respawn tất cả (player + bot)
+    private void RespawnAllEntities()
     {
         continueVotes.Value = 0;
         exitVotes.Value = 0;
 
-        // ✅ Reset spawn tracking
         usedSpawnIndices.Clear();
         SpawnPointManager.Instance.ResetSpawnCycle();
 
+        // --- Respawn players ---
         foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
         {
             var playerObj = client.PlayerObject;
+            if (playerObj == null) continue;
 
-            if (playerObj == null)
-            {
-                GameObject playerPrefab = NetworkManager.Singleton.NetworkConfig.PlayerPrefab;
-                GameObject newPlayer = Instantiate(playerPrefab);
+            var health = playerObj.GetComponent<PlayerHealth>();
+            if (health == null) continue;
 
-                var netObj = newPlayer.GetComponent<NetworkObject>();
-                netObj.SpawnAsPlayerObject(client.ClientId);
+            Vector3 spawnPos = GetUniqueSpawnPosition();
+            health.Respawn(spawnPos);
+        }
 
-                playerObj = netObj;
-            }
-
-            if (playerObj != null)
-            {
-                var health = playerObj.GetComponent<PlayerHealth>();
-                Vector3 spawnPos = GetUniqueSpawnPosition();
-                health.Respawn(spawnPos);
-            }
+        // --- Respawn bots ---
+        var bots = FindObjectsByType<BotHealth>(FindObjectsSortMode.None);
+        foreach (var bot in bots)
+        {
+            Vector3 spawnPos = GetUniqueSpawnPosition();
+            bot.Respawn(spawnPos);
         }
 
         HideContinueMenuClientRpc();
@@ -115,6 +160,12 @@ public class GameManager : NetworkBehaviour
         UIManager.Instance.HideContinueMenu();
     }
 
+    private void RestartRound()
+    {
+        Debug.Log("🔄 Restarting round...");
+        RespawnAllEntities();
+    }
+
     private void ReturnToLobby()
     {
         continueVotes.Value = 0;
@@ -124,6 +175,7 @@ public class GameManager : NetworkBehaviour
             UnityEngine.SceneManagement.LoadSceneMode.Single);
     }
 
+    // ✅ Spawn bot khi bắt đầu
     public void SpawnLobbyBots()
     {
         if (!IsServer) return;
@@ -142,11 +194,7 @@ public class GameManager : NetworkBehaviour
         }
 
         string botData = lobby.Data["Bots"].Value;
-        if (string.IsNullOrEmpty(botData))
-        {
-            Debug.Log("✅ Bot data trống");
-            return;
-        }
+        if (string.IsNullOrEmpty(botData)) return;
 
         string[] botEntries = botData.Split(';');
 
@@ -160,45 +208,36 @@ public class GameManager : NetworkBehaviour
 
             if (botPrefab == null)
             {
-                Debug.LogError("❌ Bot Prefab chưa được gán trong GameManager!");
+                Debug.LogError("❌ Bot Prefab chưa được gán!");
                 return;
             }
 
-            // ✅ Lấy vị trí spawn không trùng
             Vector3 spawnPos = GetUniqueSpawnPosition();
             GameObject botObj = Instantiate(botPrefab, spawnPos, Quaternion.identity);
-            
+
             var netObj = botObj.GetComponent<NetworkObject>();
             if (netObj == null)
             {
-                Debug.LogError("❌ Bot prefab không có NetworkObject component!");
+                Debug.LogError("❌ Bot prefab thiếu NetworkObject!");
                 Destroy(botObj);
                 continue;
             }
 
             netObj.Spawn();
 
-            // ✅ Khởi tạo bot với skin đúng
             var botSetup = botObj.GetComponent<BotSetup>();
             if (botSetup != null)
             {
-                // Gọi trực tiếp thay vì qua ServerRpc vì đã ở trên server
                 botSetup.InitBot(botName, skin);
-                Debug.Log($"✅ Spawned bot: {botName} at {spawnPos} with skin {skin}");
-            }
-            else
-            {
-                Debug.LogWarning($"⚠️ Bot prefab không có BotSetup component!");
+                Debug.Log($"🤖 Spawned bot: {botName} at {spawnPos}");
             }
         }
     }
 
-    // ✅ Hàm mới để lấy spawn position không trùng
+    // ✅ Spawn point an toàn
     private Vector3 GetUniqueSpawnPosition()
     {
         int totalSpawnPoints = SpawnPointManager.Instance.GetTotalSpawnPoints();
-        
-        // Nếu đã dùng hết tất cả spawn point thì reset
         if (usedSpawnIndices.Count >= totalSpawnPoints)
         {
             usedSpawnIndices.Clear();
@@ -208,7 +247,6 @@ public class GameManager : NetworkBehaviour
         int attempts = 0;
         int maxAttempts = totalSpawnPoints * 2;
 
-        // Tìm spawn point chưa dùng
         do
         {
             spawnIndex = SpawnPointManager.Instance.GetCurrentSpawnIndex();

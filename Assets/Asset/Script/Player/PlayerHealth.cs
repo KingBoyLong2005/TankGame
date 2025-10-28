@@ -55,7 +55,7 @@ public class PlayerHealth : NetworkBehaviour
         // Ẩn tạm player
         DisablePlayer();
 
-        GameManager.Instance.CheckAlivePlayers();
+        GameManager.Instance.CheckAliveEntities();
     }
     private void DisablePlayer()
     {
