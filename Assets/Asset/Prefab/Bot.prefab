@@ -18,6 +18,7 @@ GameObject:
   - component: {fileID: 6068626806360317378}
   - component: {fileID: 5659855697440138979}
   - component: {fileID: 1473943238786139365}
+  - component: {fileID: 7882942533439017628}
   m_Layer: 6
   m_Name: Bot
   m_TagString: Untagged
@@ -208,7 +209,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 3971383376
+  GlobalObjectIdHash: 1465134825
   InScenePlacedSourceGlobalObjectIdHash: 2791691677
   DeferredDespawnTick: 0
   Ownership: 1
@@ -366,6 +367,52 @@ MonoBehaviour:
         byte0059: 0
         byte0060: 0
         byte0061: 0
+--- !u!114 &7882942533439017628
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1983578157433659351}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 38e6cf04d3990aa4e9c51847b32f70a6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Unity.Multiplayer.Samples.Utilities.ClientAuthority.ClientNetworkTransform
+  ShowTopMostFoldoutHeaderGroup: 1
+  NetworkTransformExpanded: 1
+  AutoOwnerAuthorityTickOffset: 1
+  PositionInterpolationType: 0
+  RotationInterpolationType: 0
+  ScaleInterpolationType: 0
+  PositionLerpSmoothing: 1
+  PositionMaxInterpolationTime: 0.1
+  RotationLerpSmoothing: 1
+  RotationMaxInterpolationTime: 0.1
+  ScaleLerpSmoothing: 1
+  ScaleMaxInterpolationTime: 0.1
+  AuthorityMode: 0
+  TickSyncChildren: 0
+  UseUnreliableDeltas: 0
+  SyncPositionX: 1
+  SyncPositionY: 1
+  SyncPositionZ: 1
+  SyncRotAngleX: 1
+  SyncRotAngleY: 1
+  SyncRotAngleZ: 1
+  SyncScaleX: 0
+  SyncScaleY: 0
+  SyncScaleZ: 0
+  PositionThreshold: 0.001
+  RotAngleThreshold: 0.01
+  ScaleThreshold: 0.01
+  UseQuaternionSynchronization: 0
+  UseQuaternionCompression: 0
+  UseHalfFloatPrecision: 0
+  InLocalSpace: 0
+  SwitchTransformSpaceWhenParented: 0
+  Interpolate: 1
+  SlerpPosition: 0
 --- !u!1 &3338099095931206048
 GameObject:
   m_ObjectHideFlags: 0
@@ -558,8 +605,8 @@ MonoBehaviour:
   m_fontSizeMin: 18
   m_fontSizeMax: 72
   m_fontStyle: 0
-  m_HorizontalAlignment: 1
-  m_VerticalAlignment: 256
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
   m_wordSpacing: 0
@@ -728,7 +775,7 @@ GameObject:
   - component: {fileID: 7986524557193953273}
   - component: {fileID: 7317165457573841355}
   - component: {fileID: 8451296473276806522}
-  - component: {fileID: 3334148733084937801}
+  - component: {fileID: 7909367445537367969}
   m_Layer: 6
   m_Name: WorldSpaceCanvas
   m_TagString: Untagged
@@ -819,7 +866,7 @@ MonoBehaviour:
   m_BlockingMask:
     serializedVersion: 2
     m_Bits: 4294967295
---- !u!114 &3334148733084937801
+--- !u!114 &7909367445537367969
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -828,9 +875,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 6741007226874047461}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 56372c330f80ae14ca7d33970cef67a1, type: 3}
+  m_Script: {fileID: 11500000, guid: 03faca015d1e9754697119c5399200c1, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: 
+  m_EditorClassIdentifier: Assembly-CSharp::BotName
   target: {fileID: 7736800508915159549}
   offset: {x: 0, y: 1, z: 0}
-  PlayerNameFloating: {fileID: 2697200300795965668}
+  botNameFloating: {fileID: 2697200300795965668}

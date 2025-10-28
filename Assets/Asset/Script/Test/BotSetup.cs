@@ -8,7 +8,7 @@ public class BotSetup : NetworkBehaviour
     [SerializeField] private SpriteRenderer bodyRenderer;
     [SerializeField] private SpriteRenderer turretRenderer;
     [SerializeField] private TankSkinDatabase skinDatabase;
-
+    
     public NetworkVariable<FixedString64Bytes> botName =
         new NetworkVariable<FixedString64Bytes>(
             default, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);

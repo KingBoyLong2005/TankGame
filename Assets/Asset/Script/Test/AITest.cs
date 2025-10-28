@@ -94,7 +94,24 @@ public class AITest : NetworkBehaviour
 
         // --- Xoay turret ---
         if (target != null)
-            RotateTurretTowards(target.position);
+        {
+            // Nếu target chết hoặc bị despawn thì bỏ target
+            var playerHealth = target.GetComponent<PlayerHealth>();
+            var botHealth = target.GetComponent<BotHealth>();
+
+            bool targetDead = false;
+
+            if (playerHealth != null && !playerHealth.IsAlive.Value)
+                targetDead = true;
+            else if (botHealth != null && !botHealth.IsAlive.Value)
+                targetDead = true;
+
+            if (targetDead)
+            {
+                target = null;
+                return; // để frame sau tự tìm target mới
+            }
+        }
     }
 
     private void MoveTowards(Vector2 destination)

@@ -68,7 +68,7 @@ public class BotHealth : NetworkBehaviour
         DisableBot();
 
         // Nếu bạn có hệ thống quản lý bot (BotManager)
-        // GameManager.Instance.CheckAliveEntities();
+        GameManager.Instance.CheckAliveEntities();
     }
 
     private void DisableBot()
