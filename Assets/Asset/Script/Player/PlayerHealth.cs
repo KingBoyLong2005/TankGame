@@ -53,13 +53,14 @@ public class PlayerHealth : NetworkBehaviour
         IsAlive.Value = false;
 
         // Ẩn tạm player
-        DisablePlayer();
+        DisablePlayerClientRpc();
 
         GameManager.Instance.CheckAliveEntities();
     }
-    private void DisablePlayer()
+    [ClientRpc]
+    private void DisablePlayerClientRpc()
     {
-        // Tắt collider và renderer (không despawn)
+        // Chạy trên TẤT CẢ clients
         var renderers = GetComponentsInChildren<SpriteRenderer>();
         foreach (var r in renderers) r.enabled = false;
 
@@ -69,14 +70,36 @@ public class PlayerHealth : NetworkBehaviour
         var controller = GetComponent<PlayerController>();
         if (controller != null) controller.enabled = false;
     }
+    // private void DisablePlayer()
+    // {
+    //     // Tắt collider và renderer (không despawn)
+    //     var renderers = GetComponentsInChildren<SpriteRenderer>();
+    //     foreach (var r in renderers) r.enabled = false;
+
+    //     var colliders = GetComponentsInChildren<Collider2D>();
+    //     foreach (var c in colliders) c.enabled = false;
+
+    //     var controller = GetComponent<PlayerController>();
+    //     if (controller != null) controller.enabled = false;
+    // }
 
     public void Respawn(Vector3 position)
     {
-        // Reset các thành phần
+        if (!IsServer) return;
+        
         transform.position = position;
         currentHealth.Value = maxHealth;
         IsAlive.Value = true;
+        
+        // Gọi ClientRpc để enable trên tất cả clients
+        EnablePlayerClientRpc(position);
+    }
 
+    [ClientRpc]
+    private void EnablePlayerClientRpc(Vector3 position)
+    {
+        transform.position = position;
+        
         var renderers = GetComponentsInChildren<SpriteRenderer>();
         foreach (var r in renderers) r.enabled = true;
 

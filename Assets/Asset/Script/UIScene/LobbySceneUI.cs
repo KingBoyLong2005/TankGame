@@ -6,7 +6,6 @@ using TMPro;
 using Unity.Services.Lobbies;
 using System.Threading.Tasks;
 using Unity.Netcode;
-using Unity.Services.Authentication;
 
 public class LobbySceneUI : MonoBehaviour
 {
@@ -15,15 +14,12 @@ public class LobbySceneUI : MonoBehaviour
     [SerializeField] private Button addBotButton;
     [SerializeField] private Button Ready;
     [SerializeField] private Button CancelReady;
-    // [SerializeField] private Button RefreshButton;
     [SerializeField] private TMP_Text CodeLobby;
 
     private List<GameObject> slots = new List<GameObject>();
     private Dictionary<string, int> botSkins = new();
     
     private string lastLobbyState = "";
-    private float refreshTimer = 0f;
-    private const float REFRESH_INTERVAL = 0.5f; // Refresh mỗi 0.5s
 
     private void Start()
     {
@@ -38,40 +34,35 @@ public class LobbySceneUI : MonoBehaviour
         });
 
         addBotButton.onClick.AddListener(AddBot);
-        // RefreshButton.onClick.AddListener(() => { RefreshLobbyFromLobbyData(); });
-        CodeLobby.text = LobbyManager.Instance.GetCodeLobby();
         
-        // if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsClient)
-        // {
-        //     if (LobbyPlayersManager.Instance != null)
-        //     {
-        //         LobbyPlayersManager.Instance.RegisterMapping(
-        //             NetworkManager.Singleton.LocalClientId,
-        //             LobbyManager.Instance.GetPlayerId()
-        //         );
-        //     }
-        // }
-        if (NetworkManager.Singleton.IsServer)
+        if (LobbyManager.Instance != null && LobbyManager.Instance.joinLobby != null)
         {
-            if (NetworkManager.Singleton != null)
-            {
-                ulong netId = NetworkManager.Singleton.LocalClientId;
-                string lobbyId = LobbyManager.Instance.GetPlayerId();
-
-                // Gửi mapping lên server để host biết
-                LobbyPlayersManager.Instance.RegisterMappingServerRpc(netId, lobbyId);
-            }
+            CodeLobby.text = LobbyManager.Instance.GetCodeLobby();
         }
 
-
-        // Đăng ký lắng nghe sự kiện cập nhật lobby
+        // Đăng ký lắng nghe sự kiện cập nhật lobby từ Lobby Service
         if (LobbyManager.Instance != null)
         {
             LobbyManager.Instance.OnLobbyUpdated += RefreshLobbyFromLobbyData;
         }
 
-        // Refresh UI lần đầu
-        Invoke(nameof(RefreshLobbyFromLobbyData), 0.5f);
+        // Refresh UI lần đầu sau 1s để đảm bảo Netcode đã sync xong
+        Invoke(nameof(InitialRefresh), 1f);
+    }
+
+    private void InitialRefresh()
+    {
+        if (LobbyPlayersManager.Instance != null)
+        {
+            RefreshLobbyFromNetcode(
+                LobbyPlayersManager.Instance.GetAllPlayers(),
+                LobbyPlayersManager.Instance.GetAllBots()
+            );
+        }
+        else
+        {
+            RefreshLobbyFromLobbyData();
+        }
     }
 
     private void OnDestroy()
@@ -82,18 +73,54 @@ public class LobbySceneUI : MonoBehaviour
 
     private void Update()
     {
-        if (LobbyManager.Instance.hostLobby == null) return;
-        LobbyGameFlow.Instance.TryCheckAllReady();
-
-        // ✅ Thêm auto-refresh để đảm bảo UI luôn sync
-        refreshTimer += Time.deltaTime;
-        if (refreshTimer >= REFRESH_INTERVAL)
+        if (LobbyManager.Instance != null && LobbyManager.Instance.hostLobby != null)
         {
-            refreshTimer = 0f;
-            RefreshLobbyFromLobbyData();
+            LobbyGameFlow.Instance?.TryCheckAllReady();
         }
     }
 
+    // ✅ Phương thức refresh UI dựa trên dữ liệu từ Netcode (ưu tiên)
+    public void RefreshLobbyFromNetcode(List<PlayerData> players, List<BotData> bots)
+    {
+        Debug.Log($"[LobbySceneUI] Refreshing from Netcode with {players.Count} players and {bots.Count} bots");
+
+        // Xóa các slot cũ
+        foreach (Transform child in playerListContainer)
+            Destroy(child.gameObject);
+
+        slots.Clear();
+
+        // --- 1. Hiển thị BOT trước (từ Netcode) ---
+        foreach (var bot in bots)
+        {
+            string botName = bot.botName.ToString();
+            int skin = bot.skinIndex;
+
+            var botSlot = Instantiate(playerSlotPrefab, playerListContainer);
+            botSlot.GetComponent<PlayerSlotUI>().Setup(botName, false, skin);
+            slots.Add(botSlot);
+        }
+
+        // --- 2. Hiển thị PLAYER từ Netcode ---
+        foreach (var playerData in players)
+        {
+            string name = playerData.playerName.ToString();
+            if (string.IsNullOrEmpty(name))
+                name = $"Player{playerData.networkClientId}";
+
+            int skin = playerData.skinIndex;
+            bool isLocal = NetworkManager.Singleton != null && 
+                          playerData.networkClientId == NetworkManager.Singleton.LocalClientId;
+
+            var playerSlot = Instantiate(playerSlotPrefab, playerListContainer);
+            playerSlot.GetComponent<PlayerSlotUI>().Setup(name, isLocal, skin);
+            slots.Add(playerSlot);
+        }
+
+        Debug.Log($"✅ Refreshed Lobby UI from Netcode: {bots.Count} bots + {players.Count} players = {slots.Count} total slots");
+    }
+
+    // Phương thức refresh UI dựa trên dữ liệu Lobby Service (fallback)
     private void RefreshLobbyFromLobbyData()
     {
         if (LobbyManager.Instance == null || LobbyManager.Instance.joinLobby == null)
@@ -102,19 +129,23 @@ public class LobbySceneUI : MonoBehaviour
             return;
         }
 
+        // Nếu có LobbyPlayersManager, ưu tiên dùng Netcode
+        if (LobbyPlayersManager.Instance != null && NetworkManager.Singleton != null && NetworkManager.Singleton.IsClient)
+        {
+            RefreshLobbyFromNetcode(
+                LobbyPlayersManager.Instance.GetAllPlayers(),
+                LobbyPlayersManager.Instance.GetAllBots()
+            );
+            return;
+        }
+
         var lobby = LobbyManager.Instance.joinLobby;
 
-        // ✅ Tạo hash để kiểm tra thay đổi (bao gồm cả số lượng player)
+        // Tạo hash để kiểm tra thay đổi
         string currentState = $"Players:{lobby.Players.Count}";
-        foreach (var p in lobby.Players)
-        {
-            currentState += $"|{p.Id}";
-        }
-        
         if (lobby.Data != null && lobby.Data.ContainsKey("Bots"))
             currentState += $";Bots:{lobby.Data["Bots"].Value}";
 
-        // Nếu không thay đổi thì không cần refresh
         if (currentState == lastLobbyState && slots.Count > 0)
             return;
 
@@ -169,12 +200,23 @@ public class LobbySceneUI : MonoBehaviour
             slots.Add(playerSlot);
         }
 
-        Debug.Log($"✅ Refreshed Lobby UI: {lobby.Players.Count} players + {botSkins.Count} bots = {slots.Count} total slots");
+        Debug.Log($"✅ Refreshed Lobby UI from Lobby Service: {lobby.Players.Count} players + {botSkins.Count} bots");
     }
 
+    // Giữ lại để tương thích (deprecated)
     public void RefreshLobby(List<ulong> playerIds)
     {
-        RefreshLobbyFromLobbyData();
+        if (LobbyPlayersManager.Instance != null)
+        {
+            RefreshLobbyFromNetcode(
+                LobbyPlayersManager.Instance.GetAllPlayers(),
+                LobbyPlayersManager.Instance.GetAllBots()
+            );
+        }
+        else
+        {
+            RefreshLobbyFromLobbyData();
+        }
     }
 
     private async void AddBot()
@@ -186,10 +228,20 @@ public class LobbySceneUI : MonoBehaviour
         }
 
         string botName = $"Bot{Random.Range(1000, 9999)}";
-        await AddBotToLobby(botName);
+        int randomSkin = Random.Range(0, 3);
+
+        // ✅ Sử dụng Netcode để đồng bộ real-time
+        if (LobbyPlayersManager.Instance != null)
+        {
+            LobbyPlayersManager.Instance.AddBotServerRpc(botName, randomSkin);
+            Debug.Log($"✅ Sent add bot request to server: {botName} (Skin {randomSkin})");
+        }
+
+        // Vẫn cập nhật Lobby Service để persist data
+        await AddBotToLobby(botName, randomSkin);
     }
 
-    private async Task AddBotToLobby(string newBotName)
+    private async Task AddBotToLobby(string newBotName, int skinIndex)
     {
         var lobby = LobbyManager.Instance.joinLobby;
         if (lobby == null) return;
@@ -198,9 +250,8 @@ public class LobbySceneUI : MonoBehaviour
         if (lobby.Data != null && lobby.Data.ContainsKey("Bots"))
             oldValue = lobby.Data["Bots"].Value;
 
-        int randomSkin = Random.Range(0, 3);
-        string botEntry = $"{newBotName}:{randomSkin}";
-
+        string botEntry = $"{newBotName}:{skinIndex}";
+        
         string newValue = string.IsNullOrEmpty(oldValue)
             ? botEntry
             : $"{oldValue};{botEntry}";
@@ -215,62 +266,17 @@ public class LobbySceneUI : MonoBehaviour
                 }
             });
 
-            Debug.Log($"✅ Bot '{newBotName}' (Skin {randomSkin}) added to lobby!");
-
+            Debug.Log($"✅ Bot '{newBotName}' (Skin {skinIndex}) added to Lobby Service!");
+            
             LobbyManager.Instance.joinLobby = lobby;
             if (LobbyManager.Instance.hostLobby != null)
                 LobbyManager.Instance.hostLobby = lobby;
 
-            botSkins[newBotName] = randomSkin;
-
-            // ✅ Force refresh ngay lập tức
-            lastLobbyState = ""; // Reset để force update
-            RefreshLobbyFromLobbyData();
+            botSkins[newBotName] = skinIndex;
         }
         catch (System.Exception e)
         {
-            Debug.LogError("❌ Không thể thêm bot: " + e.Message);
+            Debug.LogError("❌ Không thể thêm bot vào Lobby Service: " + e.Message);
         }
     }
-    public void RefreshLobbyFromNetcode(ulong[] playerIds)
-    {
-        // Xóa UI cũ
-        foreach (Transform child in playerListContainer)
-            Destroy(child.gameObject);
-
-        slots.Clear();
-
-        var lobby = LobbyManager.Instance.joinLobby;
-        if (lobby == null)
-        {
-            Debug.LogWarning("⚠️ Không có lobby dữ liệu để hiển thị player.");
-            return;
-        }
-
-        // Hiển thị người chơi thật từ Netcode
-        string name = "Unknown";
-        foreach (ulong id in playerIds)
-        {
-            string lobbyId = null;
-            if (LobbyPlayersManager.Instance.networkToLobbyId.TryGetValue(id, out string mapped))
-                lobbyId = mapped;
-
-            var playerData = lobby.Players.Find(p => p.Id == lobbyId);
-            if (playerData != null && playerData.Data != null && playerData.Data.ContainsKey("PlayerName"))
-                name = playerData.Data["PlayerName"].Value;
-
-            int skin = 0;
-            if (playerData?.Data != null && playerData.Data.ContainsKey("Skin"))
-                int.TryParse(playerData.Data["Skin"].Value, out skin);
-
-            bool isLocal = (lobbyId == LobbyManager.Instance.GetPlayerId());
-
-            var playerSlot = Instantiate(playerSlotPrefab, playerListContainer);
-            playerSlot.GetComponent<PlayerSlotUI>().Setup(name, isLocal, skin);
-            slots.Add(playerSlot);
-        }
-
-        Debug.Log($"✅ [Netcode Refresh] UI hiển thị {playerIds.Length} người chơi.");
-    }
-
 }

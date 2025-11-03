@@ -44,12 +44,22 @@ public class AITest : NetworkBehaviour
 
     private void Update()
     {
-        // Bot chỉ chạy logic trên Server (Netcode best practice)
         if (!IsServer) return;
 
-        // --- Tìm mục tiêu ---
+        // --- Kiểm tra target có còn sống TRƯỚC ---
+        if (target != null)
+        {
+            if (!IsTargetAlive(target))
+            {
+                target = null; // Bỏ target chết
+            }
+        }
+
+        // --- Tìm mục tiêu mới nếu cần ---
         if (target == null || Vector2.Distance(transform.position, target.position) > detectRange)
+        {
             target = FindClosestTarget();
+        }
 
         if (target == null)
         {
@@ -57,12 +67,13 @@ public class AITest : NetworkBehaviour
             return;
         }
 
+        // ... phần còn lại logic di chuyển và bắn ...
+
         float dist = Vector2.Distance(transform.position, target.position);
         Vector2 movePos;
 
         if (dist > attackRange)
         {
-            // Đi gần hơn
             movePos = target.position;
         }
         else
@@ -71,17 +82,14 @@ public class AITest : NetworkBehaviour
 
             if (!hasLOS)
             {
-                // Nếu bị tường che, tìm chỗ có thể bắn
                 movePos = FindCoverPosition(target);
             }
             else
             {
-                // Nếu thấy target rõ → di chuyển vòng quanh và bắn
                 float angle = Time.time * circleSpeed;
                 Vector2 offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * keepDistance;
                 movePos = (Vector2)target.position + offset;
 
-                // --- Bắn ---
                 if (aiShooting != null && turretTransform != null)
                 {
                     Vector2 dir = (target.position - turretTransform.position).normalized;
@@ -92,28 +100,31 @@ public class AITest : NetworkBehaviour
 
         MoveTowards(movePos);
 
-        // --- Xoay turret ---
-        if (target != null)
+        if (turretTransform != null)
         {
-            // Nếu target chết hoặc bị despawn thì bỏ target
-            var playerHealth = target.GetComponent<PlayerHealth>();
-            var botHealth = target.GetComponent<BotHealth>();
-
-            bool targetDead = false;
-
-            if (playerHealth != null && !playerHealth.IsAlive.Value)
-                targetDead = true;
-            else if (botHealth != null && !botHealth.IsAlive.Value)
-                targetDead = true;
-
-            if (targetDead)
-            {
-                target = null;
-                return; // để frame sau tự tìm target mới
-            }
+            RotateTurretTowards(target.position);
         }
     }
 
+    // Hàm kiểm tra target còn sống
+    private bool IsTargetAlive(Transform target)
+    {
+        if (target == null) return false;
+        
+        var playerHealth = target.GetComponent<PlayerHealth>();
+        if (playerHealth != null)
+        {
+            return playerHealth.IsAlive.Value;
+        }
+        
+        var botHealth = target.GetComponent<BotHealth>();
+        if (botHealth != null)
+        {
+            return botHealth.IsAlive.Value;
+        }
+        
+        return true; // Nếu không có health component, coi như còn sống
+    }
     private void MoveTowards(Vector2 destination)
     {
         agent.SetDestination(destination);
@@ -163,6 +174,10 @@ public class AITest : NetworkBehaviour
         foreach (GameObject t in tanks)
         {
             if (t == gameObject) continue;
+            
+            // Kiểm tra target có còn sống không
+            if (!IsTargetAlive(t.transform)) continue;
+            
             float dist = Vector2.Distance(transform.position, t.transform.position);
             if (dist < closestDistance)
             {

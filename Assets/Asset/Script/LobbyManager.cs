@@ -309,34 +309,76 @@ public class LobbyManager : MonoBehaviour
     #endregion
     
     private async void OnLobbySceneLoaded_Host(Scene scene, LoadSceneMode mode)
-{
-    if (scene.name != lobbySceneName) return;
-    SceneManager.sceneLoaded -= OnLobbySceneLoaded_Host;
+    {
+        if (scene.name != lobbySceneName) return;
+        SceneManager.sceneLoaded -= OnLobbySceneLoaded_Host;
 
-    // Gán lại joinLobby = hostLobby để UI đọc được
-    joinLobby = hostLobby;
+        // Gán lại joinLobby = hostLobby để UI đọc được
+        joinLobby = hostLobby;
 
-    // Đảm bảo UI có đủ dữ liệu để hiển thị
-    OnLobbyUpdated?.Invoke();
+        // Đảm bảo UI có đủ dữ liệu để hiển thị
+        OnLobbyUpdated?.Invoke();
 
-    await Task.Delay(500); // chờ các MonoBehaviour khác khởi tạo xong
+        await Task.Delay(500); // chờ các MonoBehaviour khác khởi tạo xong
 
-    // Bắt đầu host sau khi scene đã khởi tạo xong
-    NetworkManager.Singleton.StartHost();
-}
+        // Bắt đầu host sau khi scene đã khởi tạo xong
+        NetworkManager.Singleton.StartHost();
+
+        // ✅ Spawn LobbyPlayersManager
+        await Task.Delay(300); // Đợi host initialize xong
+        SpawnLobbyPlayersManager();
+    }
 
     private async void OnLobbySceneLoaded_Client(Scene scene, LoadSceneMode mode)
-{
-    if (scene.name != lobbySceneName) return;
-    SceneManager.sceneLoaded -= OnLobbySceneLoaded_Client;
+    {
+        if (scene.name != lobbySceneName) return;
+        SceneManager.sceneLoaded -= OnLobbySceneLoaded_Client;
 
-    // Gửi sự kiện cập nhật đầu tiên để UI hiển thị host + client
-    OnLobbyUpdated?.Invoke();
+        // Gửi sự kiện cập nhật đầu tiên để UI hiển thị host + client
+        OnLobbyUpdated?.Invoke();
 
-    await Task.Delay(500); // chờ UI hoàn tất khởi tạo
+        await Task.Delay(500); // chờ UI hoàn tất khởi tạo
 
-    NetworkManager.Singleton.StartClient();
-}
+        NetworkManager.Singleton.StartClient();
+    }
+
+    // ✅ Method mới để spawn LobbyPlayersManager
+    private void SpawnLobbyPlayersManager()
+    {
+        if (!NetworkManager.Singleton.IsHost)
+        {
+            Debug.LogWarning("⚠️ Chỉ host mới spawn LobbyPlayersManager!");
+            return;
+        }
+
+        // Tìm LobbyPlayersManager trong scene
+        var lobbyPlayersManager = FindFirstObjectByType<LobbyPlayersManager>();
+        
+        if (lobbyPlayersManager == null)
+        {
+            Debug.LogError("❌ Không tìm thấy LobbyPlayersManager trong scene! Hãy tạo GameObject với component này.");
+            return;
+        }
+
+        var netObj = lobbyPlayersManager.GetComponent<NetworkObject>();
+        
+        if (netObj == null)
+        {
+            Debug.LogError("❌ LobbyPlayersManager không có NetworkObject component!");
+            return;
+        }
+
+        // Nếu chưa spawn thì spawn
+        if (!netObj.IsSpawned)
+        {
+            netObj.Spawn();
+            Debug.Log("✅ LobbyPlayersManager đã được spawn!");
+        }
+        else
+        {
+            Debug.Log("✅ LobbyPlayersManager đã được spawn trước đó");
+        }
+    }
 
     private void OnLobbySceneLoaded(Scene scene, LoadSceneMode mode)
 {
