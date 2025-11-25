@@ -71,12 +71,14 @@ public class LobbyGameFlow : MonoBehaviour
 
     private System.Collections.IEnumerator StartCountdown()
     {
+        LobbySceneUI lobbyUI = GetComponent<LobbySceneUI>();
         countdownRunning = true;
         int t = countdownSeconds;
 
         while (t > 0)
         {
             Debug.Log("Game starting in " + t);
+            lobbyUI.UpdateStatusServerRpc("Game starting in " + t);
             yield return new WaitForSeconds(1f);
             t--;
         }

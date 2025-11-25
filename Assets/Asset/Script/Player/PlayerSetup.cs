@@ -6,8 +6,10 @@ using Unity.Collections;
 public class PlayerSetup : NetworkBehaviour
 {
     [SerializeField] private GameObject cameraRigPrefab;
+    [SerializeField] private GameObject mobileUIPrefab; // 🟩 Thêm UI prefab joystick
 
     private GameObject localCameraRig;
+    private GameObject localMobileUI; // 🟩 Giữ tham chiếu đến UI joystick
     [HideInInspector] public Camera LocalCamera;
 
     [Header("Skin visuals")]
@@ -32,6 +34,10 @@ public class PlayerSetup : NetworkBehaviour
         {
             SpawnCameraRig();
             GetComponent<PlayerController>()?.EnableInput();
+
+            #if UNITY_ANDROID || UNITY_IOS
+            SpawnMobileUI(); // 🟩 Tự bật joystick trên mobile
+            #endif
         }
     }
 
@@ -55,6 +61,24 @@ public class PlayerSetup : NetworkBehaviour
         if (listener != null) listener.enabled = true;
     }
 
+    // 🟩 Tạo UI joystick khi chơi trên mobile
+    private void SpawnMobileUI()
+    {
+        if (mobileUIPrefab == null) return;
+        if (localMobileUI != null) return;
+
+        localMobileUI = Instantiate(mobileUIPrefab);
+        DontDestroyOnLoad(localMobileUI);
+
+        // Gán player vào MobileInput
+        var mobileInput = localMobileUI.GetComponent<MobileInput>();
+        if (mobileInput != null)
+        {
+            // mobileInput.player = GetComponent<PlayerControllerT>();
+            // mobileInput.playerShooting = GetComponent<PlayerShooting>();
+        }
+    }
+
     public override void OnNetworkSpawn()
     {
         ApplySkin(skinIndex.Value);
@@ -62,7 +86,8 @@ public class PlayerSetup : NetworkBehaviour
 
         int playerIndex = (int)OwnerClientId;
         Vector3 spawnPos = SpawnPointManager.Instance.GetNextSpawnPosition();
-            transform.position = spawnPos;
+        transform.position = spawnPos;
+
         if (IsOwner)
             StartCoroutine(SendSkinDataToServer());
     }
@@ -80,8 +105,11 @@ public class PlayerSetup : NetworkBehaviour
 
     public override void OnNetworkDespawn()
     {
-        if (IsOwner && localCameraRig != null)
-            Destroy(localCameraRig);
+        if (IsOwner)
+        {
+            if (localCameraRig != null) Destroy(localCameraRig);
+            if (localMobileUI != null) Destroy(localMobileUI);
+        }
     }
 
     [ServerRpc(RequireOwnership = false)]

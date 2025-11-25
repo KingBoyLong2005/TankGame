@@ -201,6 +201,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   ShowTopMostFoldoutHeaderGroup: 1
   cameraRigPrefab: {fileID: 6747624087142974341, guid: 20fb3222aefb8ed418eaab2364e00bd1, type: 3}
+  mobileUIPrefab: {fileID: 3603753794850923687, guid: d2bfaedc115fd76418734a583578a4c8, type: 3}
   LocalCamera: {fileID: 0}
   bodyRenderer: {fileID: 4963857651724313249}
   turretRenderer: {fileID: 2256791385562425189}

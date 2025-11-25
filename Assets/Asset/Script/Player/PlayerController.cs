@@ -33,6 +33,14 @@ public class PlayerController : MonoBehaviour
     private float currentBodyAngle;
     private bool isInputEnabled = false;
 
+    private bool useMobileInput = false;
+    private Vector2 mobileInput = Vector2.zero;
+
+    public void SetMobileInput(Vector2 input)
+    {
+        useMobileInput = true;
+        mobileInput = input;
+    }
     private void OnEnable()
     {
         if (SceneManager.GetActiveScene().name != "LobbyScene")
@@ -74,7 +82,10 @@ public class PlayerController : MonoBehaviour
         if (turretTransform == null || mainCamera == null || moveAction == null || mousePositionAction == null) return;
 
         // Đọc đầu vào di chuyển
-        moveInput = moveAction.ReadValue<Vector2>();
+        if (useMobileInput)
+            moveInput = mobileInput;
+        else
+            moveInput = moveAction.ReadValue<Vector2>();
 
         // Xoay turret theo chuột
         Vector2 mousePos = mousePositionAction.ReadValue<Vector2>();

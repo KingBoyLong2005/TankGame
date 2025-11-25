@@ -6,6 +6,7 @@ using TMPro;
 using Unity.Services.Lobbies;
 using System.Threading.Tasks;
 using Unity.Netcode;
+using Unity.Collections;
 
 public class LobbySceneUI : MonoBehaviour
 {
@@ -18,7 +19,13 @@ public class LobbySceneUI : MonoBehaviour
 
     private List<GameObject> slots = new List<GameObject>();
     private Dictionary<string, int> botSkins = new();
-    
+    [SerializeField] private TMP_Text TextStatus;
+
+    // NetworkVariable lưu trữ nội dung text cần đồng bộ
+    // private NetworkVariable<FixedString128Bytes> statusText =
+    //     new NetworkVariable<FixedString128Bytes>("Waiting for players...", 
+    //     NetworkVariableReadPermission.Everyone, 
+    //     NetworkVariableWritePermission.Server);    
     private string lastLobbyState = "";
 
     private void Start()
@@ -251,7 +258,7 @@ public class LobbySceneUI : MonoBehaviour
             oldValue = lobby.Data["Bots"].Value;
 
         string botEntry = $"{newBotName}:{skinIndex}";
-        
+
         string newValue = string.IsNullOrEmpty(oldValue)
             ? botEntry
             : $"{oldValue};{botEntry}";
@@ -267,7 +274,7 @@ public class LobbySceneUI : MonoBehaviour
             });
 
             Debug.Log($"✅ Bot '{newBotName}' (Skin {skinIndex}) added to Lobby Service!");
-            
+            UpdateStatusServerRpc("Bot '{newBotName}' (Skin {skinIndex}) added to Lobby Service!");
             LobbyManager.Instance.joinLobby = lobby;
             if (LobbyManager.Instance.hostLobby != null)
                 LobbyManager.Instance.hostLobby = lobby;
@@ -277,6 +284,12 @@ public class LobbySceneUI : MonoBehaviour
         catch (System.Exception e)
         {
             Debug.LogError("❌ Không thể thêm bot vào Lobby Service: " + e.Message);
+            UpdateStatusServerRpc("Không thể thêm bot vào Lobby Service: " + e.Message);
         }
+    }
+    [ServerRpc(RequireOwnership = false)]
+    public void UpdateStatusServerRpc(string newText)
+    {
+        TextStatus.text = newText;
     }
 }

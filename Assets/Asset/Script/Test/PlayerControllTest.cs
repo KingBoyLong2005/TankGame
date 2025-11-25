@@ -30,6 +30,13 @@ public class PlayerControllerTest : MonoBehaviour
     private Collider2D col;
     private float targetBodyAngle;
     private float currentBodyAngle;
+    private bool useMobileInput = false;
+    private Vector2 mobileInput = Vector2.zero;
+    public void SetMobileInput(Vector2 input)
+    {
+        useMobileInput = true;
+        mobileInput = input;
+    }
 
     private void Start()
     {
@@ -46,7 +53,14 @@ public class PlayerControllerTest : MonoBehaviour
 
     private void Update()
     {
-        moveInput = moveAction.ReadValue<Vector2>();
+        // Kiểm tra các component cần thiết
+        if (turretTransform == null || mainCamera == null || moveAction == null || mousePositionAction == null) return;
+
+        // Đọc đầu vào di chuyển
+        if (useMobileInput)
+            moveInput = mobileInput;
+        else
+            moveInput = moveAction.ReadValue<Vector2>();
 
         // Xoay turret theo chuột
         if (turretTransform != null && mainCamera != null)
@@ -57,6 +71,15 @@ public class PlayerControllerTest : MonoBehaviour
             float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg + turretRotationOffset;
             turretTransform.transform.rotation = Quaternion.Euler(0f, 0f, angle);
         }
+
+        #if UNITY_ANDROID
+        GameObject playerObj = GameObject.FindGameObjectWithTag("Bot");
+        if (playerObj != null)
+        {
+            Transform target = playerObj.transform;
+            RotateTurretTowards(target.position);
+        }
+        #endif
     }
 
     private void FixedUpdate()
@@ -112,4 +135,14 @@ public class PlayerControllerTest : MonoBehaviour
             rb.linearVelocity = Vector2.zero;
         }
     }
+    #if UNITY_ANDROID
+    private void RotateTurretTowards(Vector2 targetPos)
+    {
+        if (turretTransform == null) return;
+
+        Vector2 direction = targetPos - (Vector2)turretTransform.transform.position;
+        float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg + turretRotationOffset;
+        turretTransform.transform.rotation = Quaternion.Euler(0f, 0f, angle);
+    }
+    #endif
 }

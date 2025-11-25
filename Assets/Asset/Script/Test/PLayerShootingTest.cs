@@ -13,6 +13,7 @@ public class PlayerShootingTest : MonoBehaviour
     [SerializeField] private InputAction fireAction;
 
     private float nextFireTime = 0f;
+    private bool Fire = false;
 
     private void Start()
     {
@@ -21,10 +22,14 @@ public class PlayerShootingTest : MonoBehaviour
 
     private void Update()
     {
-        if (fireAction.IsPressed() && Time.time >= nextFireTime)
+        if (Time.time >= nextFireTime)
         {
-            nextFireTime = Time.time + fireRate;
-            Shoot();
+            if (Fire || fireAction.IsPressed())
+            {
+                nextFireTime = Time.time + fireRate;
+                Shoot();
+                Fire = false;
+            }
         }
     }
 
@@ -38,5 +43,9 @@ public class PlayerShootingTest : MonoBehaviour
         {
             bulletRb.linearVelocity = firePoint.up * bulletSpeed;
         }
+    }
+    public void ShootTrue()
+    {
+        Fire = true;
     }
 }

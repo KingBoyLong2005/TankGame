@@ -16,6 +16,7 @@ public class PlayerShooting : NetworkBehaviour
 
     private float nextFireTime = 0f;
     private PlayerSetup playerSetup;
+    private bool Fire = false;
 
     private void OnEnable()
     {
@@ -40,8 +41,12 @@ public class PlayerShooting : NetworkBehaviour
     {
         if (playerSetup != null && playerSetup.IsOwner && fireAction.IsPressed() && Time.time >= nextFireTime)
         {
-            nextFireTime = Time.time + fireRate;
-            ShootServerRpc();
+            if (Fire || fireAction.IsPressed())
+            {
+                nextFireTime = Time.time + fireRate;
+                ShootServerRpc();
+                Fire = false;
+            }
         }
     }
 
@@ -60,5 +65,10 @@ public class PlayerShooting : NetworkBehaviour
 
         // Gán owner để tránh tự bắn (trong Bullet script)
         bullet.GetComponent<Bullet>().SetOwner(NetworkObject);
+    }
+    [ServerRpc]
+    public void ShootTrueServerRpc()
+    {
+        Fire = true;
     }
 }

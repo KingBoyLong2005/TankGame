@@ -44,7 +44,7 @@ public class AITest : NetworkBehaviour
 
     private void Update()
     {
-        if (!IsServer) return;
+        // if (!IsServer) return;
 
         // --- Kiểm tra target có còn sống TRƯỚC ---
         if (target != null)
