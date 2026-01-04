@@ -12,7 +12,7 @@ The main objectives of this project are:
 This project focuses on **understanding core systems rather than polish**. Some mechanics or implementations may be incomplete or unoptimized, as the goal is to learn through experimentation.
 
 📺 **Gameplay & experiment demo video**  
-👉 [https://www.youtube.com/watch?v=Fe6vSpnHCsE]
+👉 (Video Gameplay)[https://www.youtube.com/watch?v=Fe6vSpnHCsE]
 
 ---
 
